@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import Intro from "./Intro.tsx";
 import {
   Volume2,
   VolumeX,
@@ -69,6 +70,7 @@ export default function App() {
 
   // High-level UI states
   const [theme, setTheme] = useState<TargetTheme>("fruits");
+  const [introDone, setIntroDone] = useState<boolean>(false);
   const [gameStatus, setGameStatus] = useState<"ready" | "playing" | "gameover">("ready");
   const [score, setScore] = useState<number>(0);
   const [highScore, setHighScore] = useState<number>(() => {
@@ -1230,7 +1232,7 @@ export default function App() {
       <header className="absolute top-0 left-0 w-full h-20 flex items-center justify-between px-6 z-10 pointer-events-none bg-gradient-to-b from-slate-950/90 via-slate-950/40 to-transparent">
         {/* Remaining Time HUD */}
         <div className="flex items-center gap-3">
-          <div className="pointer-events-auto flex items-center gap-3 bg-slate-900/90 border border-white/10 rounded-2xl px-5 py-2.5 shadow-xl backdrop-blur-md">
+          <div className="pointer-events-auto flex items-center gap-3 bg-slate-900/90 border-[3px] border-white/70 rounded-full px-5 py-2.5 shadow-xl backdrop-blur-md">
             <Timer className={`w-5 h-5 ${timeRemaining <= 10 ? "text-red-400 animate-pulse" : "text-sky-400"}`} />
             <div>
               <div className="text-[10px] font-bold tracking-wider uppercase text-slate-400 leading-tight">
@@ -1321,7 +1323,7 @@ export default function App() {
             <span>TUIO Auto-Strike: {tuioTestActive ? "ON" : "OFF"}</span>
           </button>
 
-          <div className="flex items-center gap-3 bg-slate-900/90 border border-white/10 rounded-2xl px-5 py-2.5 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-3 bg-slate-900/90 border-[3px] border-white/70 rounded-full px-5 py-2.5 shadow-xl backdrop-blur-md">
             <Sparkles className="w-5 h-5 text-amber-400" />
             <div>
               <div className="text-[10px] font-bold tracking-wider uppercase text-slate-400 leading-tight">Total Score</div>
@@ -1350,112 +1352,26 @@ export default function App() {
         </div>
       </header>
 
-      {/* Title / Ready Modal */}
-      {gameStatus === "ready" && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-6">
-          <div className="w-full max-w-md bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/15 rounded-3xl p-8 text-center shadow-2xl shadow-orange-500/10">
-            <div className="flex justify-center mb-3">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg text-3xl ${
-                isBalloons
-                  ? "bg-gradient-to-tr from-pink-500 to-rose-600 shadow-pink-500/30"
-                  : "bg-gradient-to-tr from-amber-500 to-orange-500 shadow-orange-500/30"
-              }`}>
-                {isBalloons ? "🎈" : "🍎"}
-              </div>
-            </div>
-
-            <h1 className={`text-4xl font-black tracking-tight bg-clip-text text-transparent ${
-              isBalloons
-                ? "bg-gradient-to-r from-pink-400 via-rose-300 to-sky-400"
-                : "bg-gradient-to-r from-orange-400 via-amber-300 to-red-500"
-            }`}>
-              {isBalloons ? "BALLOON POP" : "FRUIT SPLAT"}
-            </h1>
-            <p className="text-sm text-slate-400 mt-2 mb-6 leading-relaxed">
-              Amusement Park Ball-Strike Simulator.<br />
-              {isBalloons ? "Throw balls at giant carnival balloons to pop confetti!" : "Throw balls at flying fruits to splat juice on the screen!"}
-            </p>
-
-            {/* Variation Picker Tabs */}
-            <div className="flex gap-2 p-1.5 bg-slate-950/80 border border-white/10 rounded-2xl mb-6">
-              <button
-                onClick={() => switchTheme("fruits")}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  !isBalloons
-                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <span>🍎</span>
-                <span>Fruit Splat</span>
-              </button>
-              <button
-                onClick={() => switchTheme("balloons")}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  isBalloons
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <span>🎈</span>
-                <span>Balloon Pop</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 mb-6 text-left">
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-2.5">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 mb-0.5">
-                  <Sparkles className="w-3 h-3" /> Hit
-                </div>
-                <div className="text-xs font-extrabold text-slate-100">+50 to +90</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Base score</div>
-              </div>
-
-              <div className="bg-white/[0.04] border border-amber-500/30 rounded-2xl p-2.5">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-400 mb-0.5">
-                  <Flame className="w-3 h-3" /> Combo
-                </div>
-                <div className="text-xs font-extrabold text-amber-300">2x, 3x, 4x...</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Quick hits</div>
-              </div>
-
-              <div className="bg-white/[0.04] border border-red-500/20 rounded-2xl p-2.5">
-                <div className="flex items-center gap-1 text-[11px] font-bold text-red-400 mb-0.5">
-                  <BombIcon className="w-3 h-3" /> Bomb
-                </div>
-                <div className="text-xs font-extrabold text-red-400">-200 pts</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Resets combo</div>
-              </div>
-            </div>
-
-            <button
-              onClick={startNewGame}
-              className={`w-full py-4 px-6 rounded-2xl text-slate-950 font-black text-lg tracking-wide shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
-                isBalloons
-                  ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white shadow-pink-500/30"
-                  : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 shadow-orange-500/30"
-              }`}
-            >
-              START {isBalloons ? "POPPING" : "GAME"} (60s)
-            </button>
-
-            <div className="mt-4 flex items-center justify-center gap-2 text-[11px] font-medium text-sky-400/90 bg-sky-950/40 border border-sky-500/20 py-1.5 px-3 rounded-full">
-              <Crosshair className="w-3.5 h-3.5" />
-              <span>TUIO compatible · window.simulateTuioStrike(x, y)</span>
-            </div>
-          </div>
-        </div>
+      {/* Intro page */}
+      {!introDone && (
+        <Intro
+          onPlay={(t) => {
+            switchTheme(t);
+            setIntroDone(true);
+            startNewGame();
+          }}
+        />
       )}
 
       {/* Time's Up Screen Modal */}
       {gameStatus === "gameover" && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6">
-          <div className="w-full max-w-md bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/15 rounded-3xl p-8 text-center shadow-2xl">
+          <div className="w-full max-w-md bg-gradient-to-b from-indigo-950/95 to-slate-950/95 border-[5px] border-white rounded-[28px] p-8 text-center shadow-2xl">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/20 text-sky-400 mb-3 border border-sky-500/30">
               <Trophy className="w-7 h-7" />
             </div>
 
-            <h2 className="text-3xl font-black text-white tracking-tight">TIME'S UP!</h2>
+            <h2 className="text-4xl text-white tracking-tight" style={{ WebkitTextStroke: "1px #1b1a6e", textShadow: "0 4px 0 #1b1a6e" }}>TIME'S UP!</h2>
             <p className="text-xs text-slate-400 mt-1 mb-6">Amusement park ball-strike performance report:</p>
 
             <div className="grid grid-cols-2 gap-3 mb-6 text-left">
@@ -1490,19 +1406,26 @@ export default function App() {
             <div className="flex gap-3">
               <button
                 onClick={startNewGame}
-                className={`flex-1 py-4 px-6 rounded-2xl font-black text-base tracking-wide shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 ${
-                  isBalloons
-                    ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white shadow-pink-500/25"
-                    : "bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 shadow-orange-500/25"
-                }`}
+                className="btn-3d btn-3d-amber flex-1 py-3 px-6 text-lg flex items-center justify-center gap-2"
               >
                 <RotateCcw className="w-4 h-4 stroke-[2.5]" />
                 <span>PLAY AGAIN</span>
               </button>
 
               <button
+                onClick={() => {
+                  engineRef.current.status = "ready";
+                  setGameStatus("ready");
+                  setIntroDone(false);
+                }}
+                className="btn-3d btn-3d-blue px-5 py-3 text-lg"
+              >
+                HOME
+              </button>
+
+              <button
                 onClick={() => setShowCodeModal(true)}
-                className="px-4 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 transition-all cursor-pointer"
+                className="btn-3d btn-3d-sm btn-3d-blue px-4 py-3"
                 title="Single-File HTML Export"
               >
                 <Download className="w-5 h-5" />

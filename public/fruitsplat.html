@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Fruit Splat - 2D Arcade Ball Strike Game</title>
+  <title>Fruit Splat | PlayyKingdom Arcade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Sniglet:wght@400;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/brand.css" />
+    <link rel="icon" type="image/svg+xml" href="/assets/SVG/logo/logo.svg" />
+
   <style>
     * {
       box-sizing: border-box;
@@ -18,7 +24,7 @@
       height: 100%;
       overflow: hidden;
       background-color: #0b0f19;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
     }
 
     /* Fullscreen Game Canvas */
@@ -230,25 +236,9 @@
 
     .primary-btn {
       width: 100%;
-      background: linear-gradient(135deg, #f97316, #ea580c);
-      color: white;
-      border: none;
-      padding: 16px 24px;
-      font-size: 18px;
-      font-weight: 800;
+      padding: 14px 24px;
+      font-size: 20px;
       letter-spacing: 0.5px;
-      border-radius: 16px;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(234, 88, 12, 0.4);
-      transition: all 0.2s ease;
-    }
-    .primary-btn:hover {
-      background: linear-gradient(135deg, #fb923c, #f97316);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba(234, 88, 12, 0.55);
-    }
-    .primary-btn:active {
-      transform: translateY(1px);
     }
 
     .tuio-badge {
@@ -349,7 +339,7 @@
         </div>
       </div>
 
-      <button id="startGameBtn" class="primary-btn">START GAME (60s)</button>
+      <button id="startGameBtn" class="primary-btn btn-3d btn-3d-amber">START GAME (60s)</button>
       
       <div class="tuio-badge">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
@@ -387,7 +377,7 @@
         </div>
       </div>
 
-      <button id="playAgainBtn" class="primary-btn">PLAY AGAIN</button>
+      <button id="playAgainBtn" class="primary-btn btn-3d btn-3d-amber">PLAY AGAIN</button>
     </div>
   </div>
 

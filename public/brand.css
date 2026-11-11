@@ -1,0 +1,80 @@
+/* PlayyKingdom brand: fonts, colour tokens and the glossy 3D buttons (shared with the standalone game pages).
+   Fonts are loaded from Google Fonts in each HTML <head>. Unlayered on purpose so it wins over Tailwind's preflight. */
+:root {
+  --playy-indigo: #1b1a6e;
+  --playy-teal: #2dd4bf;
+  --playy-blue: #60a5fa;
+  --playy-amber: #fbbf24;
+  --playy-yellow: #ffd22a;
+  --playy-pink: #ff9fd2;
+}
+
+body {
+  font-family: 'Fredoka', 'Nunito', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+button * {
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-weight: 700;
+}
+
+h1, h2, h3 {
+  font-family: 'Sniglet', 'Fredoka', system-ui, sans-serif;
+  font-weight: 800;
+}
+
+/* Faux-3D glossy buttons: white rim, darker bottom lip, soft top gloss */
+.btn-3d {
+  --btn-top: #5eead4;
+  --btn-main: #2dd4bf;
+  --btn-edge: #14a394;
+  --btn-rim: 6px;
+  position: relative;
+  isolation: isolate;
+  color: #fff;
+  border: var(--btn-rim) solid #fff;
+  border-radius: 28px;
+  background: linear-gradient(to bottom, var(--btn-top), var(--btn-main));
+  box-shadow:
+    inset 0 -10px 0 var(--btn-edge),
+    0 6px 0 rgba(0, 0, 0, 0.18),
+    0 14px 24px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+}
+.btn-3d::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 8%;
+  left: 7%;
+  right: 7%;
+  height: 34%;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+.btn-3d:hover { filter: brightness(1.06); }
+.btn-3d:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 -5px 0 var(--btn-edge),
+    0 2px 0 rgba(0, 0, 0, 0.18),
+    0 6px 12px rgba(0, 0, 0, 0.35);
+}
+.btn-3d-blue  { --btn-top: #93c5fd; --btn-main: #60a5fa; --btn-edge: #2f6fd1; }
+.btn-3d-amber { --btn-top: #fde047; --btn-main: #fbbf24; --btn-edge: #d98c06; color: #5b3a00; text-shadow: 0 2px 0 rgba(255, 255, 255, 0.35); }
+.btn-3d-pink  { --btn-top: #f9a8d4; --btn-main: #f472b6; --btn-edge: #c2417f; }
+.btn-3d-sm { --btn-rim: 3px; border-radius: 9999px; box-shadow: inset 0 -5px 0 var(--btn-edge), 0 4px 10px rgba(0, 0, 0, 0.3); }
+
+/* Intro page */
+.intro-page {
+  background: linear-gradient(to bottom, #7dd3fc 0%, #a5f3fc 45%, #bbf7d0 100%);
+  color: var(--playy-indigo);
+}
+.intro-star { position: absolute; color: #ffe044; -webkit-text-stroke: 1px #ff9d0a; text-shadow: 0 3px 0 #d86b0b, 0 0 10px rgba(255, 226, 52, .8); pointer-events: none; line-height: 1; }
+.intro-star.pink { color: var(--playy-pink); -webkit-text-stroke: 1px #ff63a8; text-shadow: 0 3px 0 #c2417f; }
