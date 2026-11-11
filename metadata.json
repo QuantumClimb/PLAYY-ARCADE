@@ -1,6 +1,6 @@
 {
-  "name": "Fruit Splat Arcade",
-  "description": "Amusement park arcade ball-strike 2D fruit splatting game with physics, juice splats, bombs, and TUIO touch compatibility.",
+  "name": "PlayyKingdom Arcade",
+  "description": "Amusement park arcade ball-strike 2D fruit splatting and balloon popping game with combo multiplier system, physics, juice splats, bombs, and TUIO touch compatibility.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

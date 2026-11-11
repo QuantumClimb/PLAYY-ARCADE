@@ -18,13 +18,15 @@ import {
   Timer,
   Trophy,
   ExternalLink,
-  Target
+  Target,
+  Flame
 } from "lucide-react";
 
 // ==========================================
 // GAME CONSTANTS
 // ==========================================
 const GAME_DURATION_SEC = 60;
+const COMBO_WINDOW_SEC = 2.0; // Quick succession window for score multipliers
 const GRAVITY_FRUITS = 980;
 const GRAVITY_BALLOONS = 740; // Floater gravity for carnival balloons
 const BALL_STRIKE_RADIUS = 84; // Scaled for 75% larger targets
@@ -74,7 +76,14 @@ export default function App() {
   });
   const [timeRemaining, setTimeRemaining] = useState<number>(GAME_DURATION_SEC);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [stats, setStats] = useState({ hits: 0, throws: 0, bombs: 0 });
+  const [stats, setStats] = useState({ hits: 0, throws: 0, bombs: 0, maxCombo: 0 });
+  const [comboStreak, setComboStreak] = useState<number>(0);
+
+  // Direct DOM refs for 60fps smooth combo timer bar animation (no React re-renders)
+  const comboContainerRef = useRef<HTMLDivElement | null>(null);
+  const comboProgressBarRef = useRef<HTMLDivElement | null>(null);
+  const comboBadgeRef = useRef<HTMLSpanElement | null>(null);
+  const comboTextRef = useRef<HTMLSpanElement | null>(null);
 
   // Developer tool modals
   const [showCodeModal, setShowCodeModal] = useState<boolean>(false);
@@ -90,6 +99,9 @@ export default function App() {
     totalThrows: 0,
     totalHits: 0,
     bombsHit: 0,
+    combo: 0,           // Current combo streak multiplier
+    comboTimer: 0,      // Time left in current combo window (2.0s)
+    maxCombo: 0,        // Round record max combo streak
     spawnTimer: 0,
     bombSpawnTimer: 0,
     shakeIntensity: 0,
@@ -126,12 +138,14 @@ export default function App() {
     return audioCtxRef.current;
   }
 
-  function playSound(type: "splat" | "pop" | "bomb" | "strike" | "tick" | "start") {
+  function playSound(type: "splat" | "pop" | "bomb" | "strike" | "tick" | "start" | "comboBreak", comboLevel: number = 1) {
     if (engineRef.current.isMuted) return;
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
+      // Pitch factor elevates each consecutive combo hit
+      const pitchFactor = 1 + Math.min(comboLevel - 1, 8) * 0.14;
 
       if (type === "splat") {
         if (engineRef.current.theme === "balloons") {
@@ -139,8 +153,8 @@ export default function App() {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(820, now);
-          osc.frequency.exponentialRampToValueAtTime(110, now + 0.07);
+          osc.frequency.setValueAtTime(820 * pitchFactor, now);
+          osc.frequency.exponentialRampToValueAtTime(110 * pitchFactor, now + 0.07);
           gain.gain.setValueAtTime(0.45, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
           osc.connect(gain);
@@ -152,8 +166,8 @@ export default function App() {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = "sine";
-          osc.frequency.setValueAtTime(440, now);
-          osc.frequency.exponentialRampToValueAtTime(70, now + 0.16);
+          osc.frequency.setValueAtTime(440 * pitchFactor, now);
+          osc.frequency.exponentialRampToValueAtTime(70 * pitchFactor, now + 0.16);
           gain.gain.setValueAtTime(0.35, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
           osc.connect(gain);
@@ -161,18 +175,60 @@ export default function App() {
           osc.start(now);
           osc.stop(now + 0.18);
         }
+
+        // Resonant celebratory chord chime for 3x+ combos
+        if (comboLevel >= 3) {
+          const chime = ctx.createOscillator();
+          const chimeGain = ctx.createGain();
+          chime.type = "triangle";
+          const chimeFreq = 523.25 * Math.pow(1.15, Math.min(comboLevel - 2, 8));
+          chime.frequency.setValueAtTime(chimeFreq, now);
+          chimeGain.gain.setValueAtTime(0.25, now);
+          chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          chime.connect(chimeGain);
+          chimeGain.connect(ctx.destination);
+          chime.start(now);
+          chime.stop(now + 0.3);
+        }
       } else if (type === "pop") {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(820, now);
-        osc.frequency.exponentialRampToValueAtTime(110, now + 0.07);
+        osc.frequency.setValueAtTime(820 * pitchFactor, now);
+        osc.frequency.exponentialRampToValueAtTime(110 * pitchFactor, now + 0.07);
         gain.gain.setValueAtTime(0.45, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.09);
+
+        if (comboLevel >= 3) {
+          const chime = ctx.createOscillator();
+          const chimeGain = ctx.createGain();
+          chime.type = "triangle";
+          const chimeFreq = 659.25 * Math.pow(1.15, Math.min(comboLevel - 2, 8));
+          chime.frequency.setValueAtTime(chimeFreq, now);
+          chimeGain.gain.setValueAtTime(0.25, now);
+          chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+          chime.connect(chimeGain);
+          chimeGain.connect(ctx.destination);
+          chime.start(now);
+          chime.stop(now + 0.28);
+        }
+      } else if (type === "comboBreak") {
+        // Distinct breaker tone on bomb hit
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.22);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
       } else if (type === "bomb") {
         // Heavy explosive sub-bass impact
         const osc = ctx.createOscillator();
@@ -326,6 +382,17 @@ export default function App() {
           engine.score -= BOMB_PENALTY;
           setScore(engine.score);
 
+          // Reset combo streak
+          if (engine.combo > 1) {
+            addFloatingText(target.x, target.y - 60, "COMBO BROKEN!", "#f87171", 44, true);
+            playSound("comboBreak");
+          }
+          engine.combo = 0;
+          engine.comboTimer = 0;
+          setComboStreak(0);
+          if (comboProgressBarRef.current) comboProgressBarRef.current.style.width = "0%";
+          if (comboContainerRef.current) comboContainerRef.current.style.opacity = "0";
+
           triggerScreenFlash("rgba(239, 68, 68, 0.85)");
           engine.shakeIntensity = 28;
           playSound("bomb");
@@ -334,14 +401,65 @@ export default function App() {
           createBombDebris(target.x, target.y);
           engine.activeFruits.splice(i, 1);
         } else {
-          // TARGET SPLAT / POP
+          // TARGET SPLAT / POP WITH COMBO MULTIPLIER
+          if (engine.comboTimer > 0) {
+            engine.combo += 1;
+          } else {
+            engine.combo = 1;
+          }
+          engine.comboTimer = COMBO_WINDOW_SEC;
+          if (engine.combo > engine.maxCombo) {
+            engine.maxCombo = engine.combo;
+          }
+
+          const currentCombo = engine.combo;
+          const multiplier = currentCombo;
+          const earnedPoints = target.points * multiplier;
+
           engine.totalHits++;
-          engine.score += target.points;
+          engine.score += earnedPoints;
           setScore(engine.score);
+          setComboStreak(currentCombo);
 
-          playSound("splat");
+          if (comboContainerRef.current) {
+            comboContainerRef.current.style.opacity = currentCombo >= 2 ? "1" : "0";
+          }
+          if (comboProgressBarRef.current) {
+            comboProgressBarRef.current.style.width = "100%";
+          }
+          if (comboBadgeRef.current) {
+            comboBadgeRef.current.textContent = `${currentCombo}x`;
+          }
+          if (comboTextRef.current) {
+            comboTextRef.current.textContent = currentCombo >= 5 ? "UNSTOPPABLE" : currentCombo >= 4 ? "ULTRA COMBO" : currentCombo >= 3 ? "MEGA COMBO" : "COMBO";
+          }
 
-          addFloatingText(target.x, target.y, `+${target.points}`, target.juiceColor, 38, false);
+          playSound("splat", currentCombo);
+
+          // Escalating floating text with combo multiplier badges
+          let comboLabel = "";
+          let textColor = target.juiceColor;
+          let fontSize = 38;
+
+          if (currentCombo === 2) {
+            comboLabel = " (2x COMBO!)";
+            textColor = "#fbbf24";
+            fontSize = 44;
+          } else if (currentCombo === 3) {
+            comboLabel = " (3x MEGA!)";
+            textColor = "#f97316";
+            fontSize = 48;
+          } else if (currentCombo === 4) {
+            comboLabel = " (4x ULTRA!)";
+            textColor = "#ef4444";
+            fontSize = 52;
+          } else if (currentCombo >= 5) {
+            comboLabel = ` (${currentCombo}x UNSTOPPABLE!)`;
+            textColor = "#e879f9";
+            fontSize = 56;
+          }
+
+          addFloatingText(target.x, target.y, `+${earnedPoints}${comboLabel}`, textColor, fontSize, currentCombo > 1);
 
           if (engine.theme === "balloons") {
             createBalloonPopBurst(target.x, target.y, target.color, target.juiceColor, target.radius);
@@ -557,6 +675,9 @@ export default function App() {
     engine.totalThrows = 0;
     engine.totalHits = 0;
     engine.bombsHit = 0;
+    engine.combo = 0;
+    engine.comboTimer = 0;
+    engine.maxCombo = 0;
     engine.spawnTimer = 0;
     engine.bombSpawnTimer = 0;
     engine.shakeIntensity = 0;
@@ -568,6 +689,9 @@ export default function App() {
     engine.lastTickSecond = GAME_DURATION_SEC;
 
     setScore(0);
+    setComboStreak(0);
+    if (comboProgressBarRef.current) comboProgressBarRef.current.style.width = "0%";
+    if (comboContainerRef.current) comboContainerRef.current.style.opacity = "0";
     setTimeRemaining(GAME_DURATION_SEC);
     setGameStatus("playing");
   };
@@ -638,6 +762,23 @@ export default function App() {
       if (engine.status === "playing") {
         engine.timeRemaining -= dt;
 
+        // Combo countdown and progress bar update (direct DOM for 60fps)
+        if (engine.comboTimer > 0) {
+          engine.comboTimer -= dt;
+          const progressPct = Math.max(0, (engine.comboTimer / COMBO_WINDOW_SEC) * 100);
+          if (comboProgressBarRef.current) {
+            comboProgressBarRef.current.style.width = `${progressPct}%`;
+          }
+          if (engine.comboTimer <= 0) {
+            engine.comboTimer = 0;
+            engine.combo = 0;
+            setComboStreak(0);
+            if (comboContainerRef.current) {
+              comboContainerRef.current.style.opacity = "0";
+            }
+          }
+        }
+
         const currentSec = Math.ceil(engine.timeRemaining);
         if (currentSec <= 10 && currentSec !== engine.lastTickSecond && currentSec > 0) {
           playSound("tick");
@@ -655,6 +796,7 @@ export default function App() {
             hits: engine.totalHits,
             throws: engine.totalThrows,
             bombs: engine.bombsHit,
+            maxCombo: engine.maxCombo,
           });
 
           setHighScore((prev) => {
@@ -1034,6 +1176,9 @@ export default function App() {
         ctx.textBaseline = "middle";
         ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
         ctx.shadowBlur = 10;
+        ctx.lineWidth = Math.max(3, fs.fontSize * 0.1);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+        ctx.strokeText(fs.text, fs.x, fs.y);
         ctx.fillStyle = fs.color;
         ctx.fillText(fs.text, fs.x, fs.y);
         ctx.restore();
@@ -1136,6 +1281,33 @@ export default function App() {
 
         {/* Global Score HUD & Controls */}
         <div className="flex items-center gap-3 pointer-events-auto">
+          {/* Dynamic Combo Multiplier Card */}
+          <div
+            ref={comboContainerRef}
+            style={{ opacity: 0 }}
+            className="flex items-center gap-2.5 bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-red-500/20 border border-amber-500/40 rounded-2xl px-4 py-2 shadow-xl backdrop-blur-md transition-opacity duration-150"
+          >
+            <Flame className="w-5 h-5 text-amber-400 animate-bounce" />
+            <div>
+              <div className="flex items-center gap-1.5 leading-tight">
+                <span ref={comboTextRef} className="text-[10px] font-black uppercase tracking-wider text-amber-300">
+                  COMBO
+                </span>
+                <span ref={comboBadgeRef} className="text-xs font-black text-white px-1.5 py-0.5 bg-amber-500/40 border border-amber-400/30 rounded-md tabular-nums">
+                  {comboStreak > 1 ? `${comboStreak}x` : "1x"}
+                </span>
+              </div>
+              {/* Dynamic 60fps draining progress bar */}
+              <div className="w-20 h-1.5 bg-black/40 rounded-full mt-1 overflow-hidden border border-white/10">
+                <div
+                  ref={comboProgressBarRef}
+                  className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 rounded-full transition-none"
+                  style={{ width: "0%" }}
+                />
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={() => setTuioTestActive(!tuioTestActive)}
             title="Toggle TUIO Auto-Strike Simulator"
@@ -1230,21 +1402,29 @@ export default function App() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6 text-left">
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 mb-1">
-                  <Sparkles className="w-3.5 h-3.5" /> {isBalloons ? "Balloon Hit" : "Fruit Hit"}
+            <div className="grid grid-cols-3 gap-2 mb-6 text-left">
+              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-2.5">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 mb-0.5">
+                  <Sparkles className="w-3 h-3" /> Hit
                 </div>
-                <div className="text-sm font-extrabold text-slate-100">+50 to +90 pts</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">{isBalloons ? "2s confetti & shreds burst" : "2s persistent juice splat"}</div>
+                <div className="text-xs font-extrabold text-slate-100">+50 to +90</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Base score</div>
               </div>
 
-              <div className="bg-white/[0.04] border border-red-500/20 rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-red-400 mb-1">
-                  <BombIcon className="w-3.5 h-3.5" /> Black Bomb
+              <div className="bg-white/[0.04] border border-amber-500/30 rounded-2xl p-2.5">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-400 mb-0.5">
+                  <Flame className="w-3 h-3" /> Combo
                 </div>
-                <div className="text-sm font-extrabold text-red-400">-200 pts penalty</div>
-                <div className="text-[11px] text-slate-400 mt-0.5">Violent red screen flash</div>
+                <div className="text-xs font-extrabold text-amber-300">2x, 3x, 4x...</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Quick hits</div>
+              </div>
+
+              <div className="bg-white/[0.04] border border-red-500/20 rounded-2xl p-2.5">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-red-400 mb-0.5">
+                  <BombIcon className="w-3 h-3" /> Bomb
+                </div>
+                <div className="text-xs font-extrabold text-red-400">-200 pts</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Resets combo</div>
               </div>
             </div>
 
@@ -1284,6 +1464,13 @@ export default function App() {
                 <div className="text-2xl font-black text-amber-400 tabular-nums">{score}</div>
               </div>
 
+              <div className="bg-white/[0.04] border border-amber-500/30 rounded-2xl p-3.5">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-amber-300 flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 text-amber-400" /> Max Combo
+                </div>
+                <div className="text-2xl font-black text-amber-400 tabular-nums">{stats.maxCombo > 1 ? `${stats.maxCombo}x Streak` : "1x"}</div>
+              </div>
+
               <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{isBalloons ? "Balloons Popped" : "Fruits Splatted"}</div>
                 <div className="text-2xl font-black text-sky-400 tabular-nums">{stats.hits}</div>
@@ -1294,7 +1481,7 @@ export default function App() {
                 <div className="text-2xl font-black text-red-400 tabular-nums">{stats.bombs}</div>
               </div>
 
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
+              <div className="col-span-2 bg-white/[0.04] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between">
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Strike Accuracy</div>
                 <div className="text-2xl font-black text-emerald-400 tabular-nums">{accuracy}%</div>
               </div>

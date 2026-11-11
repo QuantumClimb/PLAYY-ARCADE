@@ -286,6 +286,20 @@
     </div>
 
     <div style="display: flex; gap: 12px; align-items: center;">
+      <!-- Dynamic Combo Card -->
+      <div id="comboCard" class="hud-card hidden" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(239, 68, 68, 0.2)); border-color: rgba(245, 158, 11, 0.5); padding: 8px 14px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 5px; line-height: 1;">
+            <span style="font-size: 14px;">🔥</span>
+            <span id="comboLabel" class="hud-label" style="color: #fbbf24; font-size: 10px;">COMBO</span>
+            <span id="comboBadge" style="font-size: 11px; font-weight: 900; background: rgba(245, 158, 11, 0.4); padding: 1px 6px; border-radius: 6px; color: #fff;">2x</span>
+          </div>
+          <div style="width: 80px; height: 5px; background: rgba(0,0,0,0.5); border-radius: 999px; overflow: hidden; margin-top: 4px; border: 1px solid rgba(255,255,255,0.1);">
+            <div id="comboProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); border-radius: 999px;"></div>
+          </div>
+        </div>
+      </div>
+
       <a href="/balloonpop.html" class="mode-switch-btn" title="Switch to Balloon Pop Variation">
         🎈 Balloon Pop Mode
       </a>
@@ -317,14 +331,21 @@
       <h1 class="modal-title">FRUIT SPLAT</h1>
       <p class="modal-subtitle">Amusement Park Ball-Strike Arcade Simulator.<br/>Click or throw balls at flying fruits to splat them!</p>
       
-      <div class="stats-grid">
-        <div class="stat-box">
+      <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <div class="stat-box" style="padding: 10px 12px;">
           <div class="title">Fruit Hit</div>
-          <div class="val" style="color: #4ade80;">+50 to +90 pts</div>
+          <div class="val" style="color: #4ade80; font-size: 16px;">+50 to +90</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Base points</div>
         </div>
-        <div class="stat-box">
-          <div class="title">Black Bomb</div>
-          <div class="val" style="color: #ef4444;">-200 pts penalty</div>
+        <div class="stat-box" style="padding: 10px 12px; border-color: rgba(245, 158, 11, 0.3);">
+          <div class="title" style="color: #fbbf24;">Combo Streak</div>
+          <div class="val" style="color: #fbbf24; font-size: 16px;">2x, 3x, 4x...</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Quick hits</div>
+        </div>
+        <div class="stat-box" style="padding: 10px 12px; border-color: rgba(239, 68, 68, 0.3);">
+          <div class="title" style="color: #ef4444;">Black Bomb</div>
+          <div class="val" style="color: #ef4444; font-size: 16px;">-200 pts</div>
+          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">Resets combo</div>
         </div>
       </div>
 
@@ -348,6 +369,10 @@
           <div class="title">Final Score</div>
           <div id="finalScoreVal" class="val" style="color: #fbbf24;">0</div>
         </div>
+        <div class="stat-box" style="border-color: rgba(245, 158, 11, 0.3);">
+          <div class="title" style="color: #fbbf24;">Max Combo</div>
+          <div id="finalComboVal" class="val" style="color: #fbbf24;">1x</div>
+        </div>
         <div class="stat-box">
           <div class="title">Fruits Splatted</div>
           <div id="finalSplatsVal" class="val" style="color: #38bdf8;">0</div>
@@ -356,7 +381,7 @@
           <div class="title">Bombs Detonated</div>
           <div id="finalBombsVal" class="val" style="color: #f87171;">0</div>
         </div>
-        <div class="stat-box">
+        <div class="stat-box" style="grid-column: span 2;">
           <div class="title">Accuracy</div>
           <div id="finalAccuracyVal" class="val" style="color: #4ade80;">0%</div>
         </div>
@@ -379,6 +404,7 @@
     const BALL_STRIKE_RADIUS = 84; // simulated ball collision tolerance radius (scaled for 75% larger targets)
     const SPLAT_LIFESPAN = 2.0; // Juice splat particles fade over 2.0s
     const BOMB_PENALTY = 200;
+    const COMBO_WINDOW_SEC = 2.0; // Seconds between hits to keep combo multiplier active
 
     // Fruit definitions (75% larger giant targets for high-visibility arcade touch)
     const FRUIT_TYPES = [
@@ -407,18 +433,19 @@
       }
     }
 
-    function playSound(type) {
+    function playSound(type, comboLevel = 1) {
       if (isMuted || !audioCtx) return;
       try {
         const now = audioCtx.currentTime;
 
         if (type === "splat") {
-          // Juicy squish pop: pitch drop oscillator + noise burst
+          // Juicy squish pop with ascending pitch shift per combo tier
+          const pitchFactor = 1 + Math.min(comboLevel - 1, 8) * 0.14;
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = "sine";
-          osc.frequency.setValueAtTime(420, now);
-          osc.frequency.exponentialRampToValueAtTime(80, now + 0.16);
+          osc.frequency.setValueAtTime(420 * pitchFactor, now);
+          osc.frequency.exponentialRampToValueAtTime(80 * pitchFactor, now + 0.16);
 
           gain.gain.setValueAtTime(0.35, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
@@ -427,6 +454,33 @@
           gain.connect(audioCtx.destination);
           osc.start(now);
           osc.stop(now + 0.18);
+
+          // Extra celebratory chime for high combo streaks (3x+)
+          if (comboLevel >= 3) {
+            const chime = audioCtx.createOscillator();
+            const chimeGain = audioCtx.createGain();
+            chime.type = "triangle";
+            chime.frequency.setValueAtTime(587.33 * (1 + (comboLevel - 3) * 0.1), now);
+            chimeGain.gain.setValueAtTime(0.18, now);
+            chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            chime.connect(chimeGain);
+            chimeGain.connect(audioCtx.destination);
+            chime.start(now);
+            chime.stop(now + 0.24);
+          }
+        } else if (type === "comboBreak") {
+          // Descending buzz for broken combo
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
         } else if (type === "bomb") {
           // Low explosive impact boom
           const osc = audioCtx.createOscillator();
@@ -483,6 +537,11 @@
 
     const timerDisplay = document.getElementById("timerDisplay");
     const scoreDisplay = document.getElementById("scoreDisplay");
+    const comboCard = document.getElementById("comboCard");
+    const comboLabel = document.getElementById("comboLabel");
+    const comboBadge = document.getElementById("comboBadge");
+    const comboProgressBar = document.getElementById("comboProgressBar");
+
     const startModal = document.getElementById("startModal");
     const gameOverModal = document.getElementById("gameOverModal");
     const startGameBtn = document.getElementById("startGameBtn");
@@ -492,6 +551,7 @@
     const soundOffIcon = document.getElementById("soundOffIcon");
 
     const finalScoreVal = document.getElementById("finalScoreVal");
+    const finalComboVal = document.getElementById("finalComboVal");
     const finalSplatsVal = document.getElementById("finalSplatsVal");
     const finalBombsVal = document.getElementById("finalBombsVal");
     const finalAccuracyVal = document.getElementById("finalAccuracyVal");
@@ -519,6 +579,9 @@
     const gameState = {
       status: "ready", // 'ready' | 'playing' | 'gameover'
       score: 0,
+      combo: 0,
+      comboTimer: 0,
+      maxCombo: 0,
       timeRemaining: GAME_DURATION_SEC,
       totalThrows: 0,
       totalHits: 0,
@@ -632,6 +695,15 @@
             // Bomb triggered!
             gameState.bombsHit++;
             gameState.score -= BOMB_PENALTY;
+
+            // Penalty breaks combo streak!
+            if (gameState.combo > 1) {
+              addFloatingText(target.x, target.y - 45, "COMBO BROKEN!", "#ef4444", 28, true);
+              playSound("comboBreak");
+            }
+            gameState.combo = 0;
+            gameState.comboTimer = 0;
+
             updateHud();
 
             // Violent screen flash red
@@ -652,15 +724,36 @@
             // Remove bomb instantly
             gameState.activeFruits.splice(i, 1);
           } else {
-            // Fruit hit!
+            // Fruit hit! Calculate consecutive combo multiplier
             gameState.totalHits++;
-            gameState.score += target.points;
+
+            if (gameState.comboTimer > 0) {
+              gameState.combo++;
+            } else {
+              gameState.combo = 1;
+            }
+            gameState.comboTimer = COMBO_WINDOW_SEC;
+            if (gameState.combo > gameState.maxCombo) {
+              gameState.maxCombo = gameState.combo;
+            }
+
+            const multiplier = gameState.combo;
+            const earnedPoints = target.points * multiplier;
+            gameState.score += earnedPoints;
             updateHud();
 
-            playSound("splat");
+            playSound("splat", gameState.combo);
 
-            // Floating score label drifting upward
-            addFloatingText(target.x, target.y, `+${target.points}`, target.juiceColor, 38, false);
+            // Floating score label drifting upward with combo badge
+            if (multiplier > 1) {
+              let tier = "COMBO!";
+              if (multiplier >= 5) tier = "UNSTOPPABLE!";
+              else if (multiplier >= 4) tier = "ULTRA!";
+              else if (multiplier >= 3) tier = "MEGA!";
+              addFloatingText(target.x, target.y, `+${earnedPoints} (${multiplier}x ${tier})`, "#fbbf24", 40, true);
+            } else {
+              addFloatingText(target.x, target.y, `+${target.points}`, target.juiceColor, 38, false);
+            }
 
             // Spawn persistent juice splat on background (fades over 2.0s)
             createJuiceSplat(target.x, target.y, target.color, target.juiceColor, target.radius);
@@ -807,6 +900,9 @@
     function showGameOver() {
       gameState.status = "gameover";
       finalScoreVal.textContent = gameState.score;
+      if (finalComboVal) {
+        finalComboVal.textContent = gameState.maxCombo > 1 ? `${gameState.maxCombo}x Streak` : "1x";
+      }
       finalSplatsVal.textContent = gameState.totalHits;
       finalBombsVal.textContent = gameState.bombsHit;
       
@@ -815,6 +911,7 @@
         : 0;
       finalAccuracyVal.textContent = `${accuracy}%`;
 
+      if (comboCard) comboCard.style.opacity = "0";
       gameOverModal.classList.remove("hidden");
     }
 
@@ -822,6 +919,9 @@
       initAudio();
       gameState.status = "playing";
       gameState.score = 0;
+      gameState.combo = 0;
+      gameState.comboTimer = 0;
+      gameState.maxCombo = 0;
       gameState.timeRemaining = GAME_DURATION_SEC;
       gameState.totalThrows = 0;
       gameState.totalHits = 0;
@@ -834,6 +934,7 @@
       gameState.floatingScores = [];
       gameState.strikeVisuals = [];
 
+      if (comboCard) comboCard.style.opacity = "0";
       startModal.classList.add("hidden");
       gameOverModal.classList.add("hidden");
       updateHud();
@@ -888,6 +989,31 @@
       // Update timer & state
       if (gameState.status === "playing") {
         gameState.timeRemaining -= dt;
+
+        // Combo countdown timer
+        if (gameState.comboTimer > 0) {
+          gameState.comboTimer = Math.max(0, gameState.comboTimer - dt);
+          if (gameState.comboTimer === 0) {
+            gameState.combo = 0;
+          }
+        }
+
+        // Direct DOM update for combo meter (avoids any frame drop)
+        if (comboCard) {
+          if (gameState.combo > 1 && gameState.comboTimer > 0) {
+            comboCard.style.opacity = "1";
+            comboCard.style.pointerEvents = "auto";
+            if (comboLabel) comboLabel.textContent = `${gameState.combo}x COMBO`;
+            if (comboBadge) comboBadge.textContent = `${gameState.combo}x`;
+            if (comboProgressBar) {
+              const pct = (gameState.comboTimer / COMBO_WINDOW_SEC) * 100;
+              comboProgressBar.style.width = `${pct}%`;
+            }
+          } else {
+            comboCard.style.opacity = "0";
+            comboCard.style.pointerEvents = "none";
+          }
+        }
 
         // Ticking audio in final 10 seconds
         const currentSec = Math.ceil(gameState.timeRemaining);
