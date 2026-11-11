@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Balloon Pop - 2D Arcade Ball Strike Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #070d18;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Fullscreen Game Canvas */
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+      z-index: 1;
+    }
+
+    /* Top HUD Bar */
+    #hudBar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 10;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(7, 13, 24, 0.92) 0%, rgba(7, 13, 24, 0.4) 75%, transparent 100%);
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 9px 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      pointer-events: auto;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+
+    .hud-value {
+      font-size: 28px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.3);
+    }
+
+    .hud-value.timer {
+      color: #38bdf8;
+      text-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+    }
+
+    .hud-value.timer.warning {
+      color: #ef4444;
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      animation: pulseWarning 0.6s infinite alternate;
+    }
+
+    .hud-value.score {
+      color: #f43f5e;
+      text-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
+    }
+
+    @keyframes pulseWarning {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+
+    .mode-switch-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      pointer-events: auto;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .mode-switch-btn:hover {
+      background: rgba(51, 65, 85, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #e2e8f0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    #flashOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.08s ease-out;
+    }
+
+    .overlay-modal {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(7, 13, 24, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, #131d33, #0b1220);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 28px;
+      padding: 38px 46px;
+      text-align: center;
+      max-width: 490px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65), 0 0 80px rgba(244, 63, 94, 0.18);
+      color: #fff;
+    }
+
+    .modal-title {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #f43f5e 0%, #fb7185 40%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .modal-subtitle {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 26px;
+      text-align: left;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 12px 18px;
+    }
+
+    .stat-box .title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .stat-box .val {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .primary-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(225, 29, 72, 0.45);
+      transition: all 0.2s ease;
+    }
+    .primary-btn:hover {
+      background: linear-gradient(135deg, #fb7185, #f43f5e);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(225, 29, 72, 0.6);
+    }
+    .primary-btn:active {
+      transform: translateY(1px);
+    }
+
+    .tuio-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="flashOverlay"></div>
+
+  <!-- Top HUD -->
+  <div id="hudBar">
+    <div class="hud-card">
+      <div>
+        <div class="hud-label">Remaining Time</div>
+        <div id="timerDisplay" class="hud-value timer">60s</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/fruitsplat.html" class="mode-switch-btn" title="Switch to Fruit Splat Variation">
+        🍎 Fruit Splat Mode
+      </a>
+
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Score</div>
+          <div id="scoreDisplay" class="hud-value score">0</div>
+        </div>
+      </div>
+
+      <button id="muteBtn" class="icon-btn" title="Toggle Sound">
+        <svg id="soundOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="soundOffIcon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Start Modal -->
+  <div id="startModal" class="overlay-modal">
+    <div class="modal-card">
+      <div style="font-size: 48px; margin-bottom: 6px;">🎈</div>
+      <h1 class="modal-title">BALLOON POP</h1>
+      <p class="modal-subtitle">Amusement Park Ball-Strike Carnival Simulator.<br/>Click or throw balls at giant carnival balloons to pop confetti!</p>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="title">Balloon Pop</div>
+          <div class="val" style="color: #f43f5e;">+50 to +90 pts</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Black Mine Bomb</div>
+          <div class="val" style="color: #ef4444;">-200 pts penalty</div>
+        </div>
+      </div>
+
+      <button id="startGameBtn" class="primary-btn">START POPPING (60s)</button>
+      
+      <div class="tuio-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        TUIO touch coordinate handler active via window.simulateTuioStrike(x, y)
+      </div>
+    </div>
+  </div>
+
+  <!-- Time's Up Modal -->
+  <div id="gameOverModal" class="overlay-modal hidden">
+    <div class="modal-card">
+      <div style="font-size: 44px; margin-bottom: 6px;">🏆</div>
+      <h1 class="modal-title" style="background: linear-gradient(135deg, #38bdf8, #a855f7);">TIME'S UP!</h1>
+      <p class="modal-subtitle">Carnival booth final balloon popping score:</p>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="title">Final Score</div>
+          <div id="finalScoreVal" class="val" style="color: #fbbf24;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Balloons Popped</div>
+          <div id="finalSplatsVal" class="val" style="color: #f43f5e;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Bombs Detonated</div>
+          <div id="finalBombsVal" class="val" style="color: #f87171;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Strike Accuracy</div>
+          <div id="finalAccuracyVal" class="val" style="color: #38bdf8;">0%</div>
+        </div>
+      </div>
+
+      <button id="playAgainBtn" class="primary-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ==========================================
+    // 1. CONFIGURATION & CONSTANTS (BALLOON VARIATION)
+    // ==========================================
+    const GAME_DURATION_SEC = 60;
+    const GRAVITY = 720; // Floatier gravity for balloons (carnival float feel)
+    const BALL_STRIKE_RADIUS = 84; // Giant strike collision tolerance radius
+    const SPLAT_LIFESPAN = 2.0; // Confetti & shreds fade over 2.0s
+    const BOMB_PENALTY = 200;
+
+    // Giant 75% scaled colorful amusement park balloons
+    const BALLOON_TYPES = [
+      { name: "Ruby Balloon", color: "#ef4444", accentColor: "#fca5a5", points: 50, radius: 105, stringColor: "#cbd5e1" },
+      { name: "Sky Balloon", color: "#0ea5e9", accentColor: "#7dd3fc", points: 60, radius: 98, stringColor: "#cbd5e1" },
+      { name: "Gold Balloon", color: "#eab308", accentColor: "#fef08a", points: 70, radius: 91, stringColor: "#cbd5e1" },
+      { name: "Emerald Balloon", color: "#10b981", accentColor: "#6ee7b7", points: 80, radius: 130, stringColor: "#cbd5e1" },
+      { name: "Magenta Balloon", color: "#ec4899", accentColor: "#fbcfe8", points: 90, radius: 95, stringColor: "#cbd5e1" }
+    ];
+
+    // ==========================================
+    // 2. PROCEDURAL SOUND SYNTHESIS (Snappy Pops)
+    // ==========================================
+    let audioCtx = null;
+    let isMuted = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (isMuted || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+
+        if (type === "pop") {
+          // Sharp balloon POP sound: rapid pitch drop + noise snap
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(820, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.07);
+
+          gain.gain.setValueAtTime(0.45, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === "bomb") {
+          // Low explosive impact boom
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(22, now + 0.45);
+
+          gain.gain.setValueAtTime(0.65, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.52);
+        } else if (type === "strike") {
+          // Ball striking screen glass
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === "tick") {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, now);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        }
+      } catch (err) {}
+    }
+
+    // ==========================================
+    // 3. CANVAS & ENGINE SETUP
+    // ==========================================
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const flashOverlay = document.getElementById("flashOverlay");
+
+    const timerDisplay = document.getElementById("timerDisplay");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const startModal = document.getElementById("startModal");
+    const gameOverModal = document.getElementById("gameOverModal");
+    const startGameBtn = document.getElementById("startGameBtn");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const soundOnIcon = document.getElementById("soundOnIcon");
+    const soundOffIcon = document.getElementById("soundOffIcon");
+
+    const finalScoreVal = document.getElementById("finalScoreVal");
+    const finalSplatsVal = document.getElementById("finalSplatsVal");
+    const finalBombsVal = document.getElementById("finalBombsVal");
+    const finalAccuracyVal = document.getElementById("finalAccuracyVal");
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // ==========================================
+    // 4. GAME STATE
+    // ==========================================
+    const gameState = {
+      status: "ready",
+      score: 0,
+      timeRemaining: GAME_DURATION_SEC,
+      totalThrows: 0,
+      totalHits: 0,
+      bombsHit: 0,
+      spawnTimer: 0,
+      bombSpawnTimer: 0,
+      shakeIntensity: 0,
+      shakeDecay: 18,
+      lastFrameTime: performance.now(),
+      activeFruits: [],     // Active flying balloons & bombs
+      juiceSplats: [],      // Confetti & rubber shred burst effects (2.0s fade)
+      floatingScores: [],   // Floating score labels
+      strikeVisuals: []     // Ball strike rings
+    };
+
+    // ==========================================
+    // 5. ISOLATED PHYSICS & HIT MECHANICS
+    // ==========================================
+    function spawnTarget(isBomb = false) {
+      const margin = 130;
+      const x = margin + Math.random() * (width - margin * 2);
+      const y = height + 70;
+
+      // Floatier carnival balloon apex
+      const apexY = height * (0.18 + Math.random() * 0.3);
+      const dy = apexY - y;
+      const vy = -Math.sqrt(2 * GRAVITY * Math.abs(dy));
+
+      const centerX = width / 2;
+      const drift = (centerX - x) * (0.4 + Math.random() * 0.45);
+      const timeToApex = Math.abs(vy) / GRAVITY;
+      const vx = drift / timeToApex + (Math.random() - 0.5) * 60;
+
+      if (isBomb) {
+        gameState.activeFruits.push({
+          id: Math.random(),
+          isBomb: true,
+          name: "Black Mine Bomb",
+          x: x,
+          y: y,
+          vx: vx,
+          vy: vy,
+          radius: 109,
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 2,
+          wobble: Math.random() * Math.PI * 2,
+          fuseSpark: 0
+        });
+      } else {
+        const type = BALLOON_TYPES[Math.floor(Math.random() * BALLOON_TYPES.length)];
+        gameState.activeFruits.push({
+          id: Math.random(),
+          isBomb: false,
+          name: type.name,
+          color: type.color,
+          accentColor: type.accentColor,
+          stringColor: type.stringColor,
+          points: type.points,
+          radius: type.radius,
+          x: x,
+          y: y,
+          vx: vx,
+          vy: vy,
+          rotation: (Math.random() - 0.5) * 0.3, // Gentle tilt for balloons
+          vRot: (Math.random() - 0.5) * 0.8,
+          wobble: Math.random() * Math.PI * 2,
+          stringWiggle: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    function handleBallStrike(hitX, hitY) {
+      if (gameState.status !== "playing") return;
+
+      gameState.totalThrows++;
+
+      gameState.strikeVisuals.push({
+        x: hitX,
+        y: hitY,
+        radius: 16,
+        maxRadius: 52,
+        alpha: 0.95,
+        lifespan: 0.28
+      });
+      playSound("strike");
+
+      for (let i = gameState.activeFruits.length - 1; i >= 0; i--) {
+        const target = gameState.activeFruits[i];
+        const dx = hitX - target.x;
+        const dy = hitY - target.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= target.radius + BALL_STRIKE_RADIUS) {
+          if (target.isBomb) {
+            gameState.bombsHit++;
+            gameState.score -= BOMB_PENALTY;
+            updateHud();
+
+            triggerScreenFlash("rgba(239, 68, 68, 0.85)");
+            gameState.shakeIntensity = 28;
+            playSound("bomb");
+
+            addFloatingText(target.x, target.y, `-${BOMB_PENALTY}`, "#ef4444", 46, true);
+            createBombDebris(target.x, target.y);
+            gameState.activeFruits.splice(i, 1);
+          } else {
+            gameState.totalHits++;
+            gameState.score += target.points;
+            updateHud();
+
+            playSound("pop");
+
+            addFloatingText(target.x, target.y, `+${target.points}`, target.accentColor, 38, false);
+            // Spawn Balloon Confetti & Rubber Shred Burst (2.0s lifespan)
+            createBalloonPopBurst(target.x, target.y, target.color, target.accentColor, target.radius);
+
+            gameState.activeFruits.splice(i, 1);
+          }
+          break;
+        }
+      }
+    }
+
+    window.simulateTuioStrike = function (screenX, screenY) {
+      handleBallStrike(screenX, screenY);
+    };
+
+    /**
+     * Balloon Pop Effect: Confetti ribbons & rubber shreds (fades over 2.0s)
+     */
+    function createBalloonPopBurst(x, y, mainColor, accentColor, baseRadius) {
+      const confettiCount = 32 + Math.floor(Math.random() * 10);
+      const particles = [];
+
+      for (let i = 0; i < confettiCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 70 + Math.random() * 340;
+        const isRibbon = Math.random() > 0.5;
+        particles.push({
+          x: x + (Math.random() - 0.5) * (baseRadius * 0.5),
+          y: y + (Math.random() - 0.5) * (baseRadius * 0.5),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          width: isRibbon ? 12 + Math.random() * 12 : 8 + Math.random() * 8,
+          height: isRibbon ? 5 + Math.random() * 6 : 8 + Math.random() * 8,
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 12,
+          color: Math.random() > 0.3 ? mainColor : (Math.random() > 0.5 ? accentColor : "#fef08a"),
+          friction: 0.93,
+          dripSpeed: 25 + Math.random() * 40
+        });
+      }
+
+      // Rubber balloon shreds
+      const shreds = [];
+      const shredCount = 6 + Math.floor(Math.random() * 4);
+      for (let j = 0; j < shredCount; j++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 60 + Math.random() * 200;
+        shreds.push({
+          x: x,
+          y: y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          size: baseRadius * (0.2 + Math.random() * 0.25),
+          angle: Math.random() * Math.PI * 2,
+          color: mainColor
+        });
+      }
+
+      gameState.juiceSplats.push({
+        x: x,
+        y: y,
+        mainColor: mainColor,
+        accentColor: accentColor,
+        particles: particles,
+        shreds: shreds,
+        age: 0,
+        maxLifespan: SPLAT_LIFESPAN // 2.0s
+      });
+    }
+
+    function createBombDebris(x, y) {
+      const debrisCount = 36;
+      const particles = [];
+      for (let i = 0; i < debrisCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 140 + Math.random() * 400;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          width: 8 + Math.random() * 14,
+          height: 8 + Math.random() * 14,
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 14,
+          color: Math.random() > 0.4 ? "#f43f5e" : (Math.random() > 0.5 ? "#fb7185" : "#1e293b"),
+          friction: 0.94,
+          dripSpeed: 30
+        });
+      }
+
+      gameState.juiceSplats.push({
+        x: x,
+        y: y,
+        mainColor: "#ef4444",
+        accentColor: "#f43f5e",
+        particles: particles,
+        shreds: [],
+        age: 0,
+        maxLifespan: 1.2
+      });
+    }
+
+    function addFloatingText(x, y, text, color, fontSize, isBold) {
+      gameState.floatingScores.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        fontSize: fontSize,
+        isBold: isBold,
+        vy: -75,
+        alpha: 1.0,
+        age: 0,
+        lifespan: 1.2
+      });
+    }
+
+    let flashTimer = null;
+    function triggerScreenFlash(color) {
+      flashOverlay.style.backgroundColor = color;
+      flashOverlay.style.opacity = "1";
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => {
+        flashOverlay.style.opacity = "0";
+      }, 140);
+    }
+
+    function updateHud() {
+      scoreDisplay.textContent = gameState.score;
+      const sec = Math.ceil(gameState.timeRemaining);
+      timerDisplay.textContent = `${sec}s`;
+      if (sec <= 10) {
+        timerDisplay.classList.add("warning");
+      } else {
+        timerDisplay.classList.remove("warning");
+      }
+    }
+
+    function showGameOver() {
+      gameState.status = "gameover";
+      finalScoreVal.textContent = gameState.score;
+      finalSplatsVal.textContent = gameState.totalHits;
+      finalBombsVal.textContent = gameState.bombsHit;
+      
+      const accuracy = gameState.totalThrows > 0
+        ? Math.round((gameState.totalHits / gameState.totalThrows) * 100)
+        : 0;
+      finalAccuracyVal.textContent = `${accuracy}%`;
+
+      gameOverModal.classList.remove("hidden");
+    }
+
+    function startNewGame() {
+      initAudio();
+      gameState.status = "playing";
+      gameState.score = 0;
+      gameState.timeRemaining = GAME_DURATION_SEC;
+      gameState.totalThrows = 0;
+      gameState.totalHits = 0;
+      gameState.bombsHit = 0;
+      gameState.spawnTimer = 0;
+      gameState.bombSpawnTimer = 0;
+      gameState.shakeIntensity = 0;
+      gameState.activeFruits = [];
+      gameState.juiceSplats = [];
+      gameState.floatingScores = [];
+      gameState.strikeVisuals = [];
+
+      startModal.classList.add("hidden");
+      gameOverModal.classList.add("hidden");
+      updateHud();
+    }
+
+    canvas.addEventListener("pointerdown", function (e) {
+      initAudio();
+      const rect = canvas.getBoundingClientRect();
+      handleBallStrike(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    canvas.addEventListener("touchstart", function (e) {
+      initAudio();
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        handleBallStrike(t.clientX - rect.left, t.clientY - rect.top);
+      }
+    }, { passive: false });
+
+    startGameBtn.addEventListener("click", startNewGame);
+    playAgainBtn.addEventListener("click", startNewGame);
+
+    muteBtn.addEventListener("click", function () {
+      initAudio();
+      isMuted = !isMuted;
+      if (isMuted) {
+        soundOnIcon.classList.add("hidden");
+        soundOffIcon.classList.remove("hidden");
+      } else {
+        soundOnIcon.classList.remove("hidden");
+        soundOffIcon.classList.add("hidden");
+      }
+    });
+
+    // ==========================================
+    // 6. MAIN GAME LOOP
+    // ==========================================
+    let lastTickSecond = GAME_DURATION_SEC;
+
+    function gameLoop(currentTime) {
+      const dt = Math.min((currentTime - gameState.lastFrameTime) / 1000, 0.05);
+      gameState.lastFrameTime = currentTime;
+
+      if (gameState.status === "playing") {
+        gameState.timeRemaining -= dt;
+
+        const currentSec = Math.ceil(gameState.timeRemaining);
+        if (currentSec <= 10 && currentSec !== lastTickSecond && currentSec > 0) {
+          playSound("tick");
+          lastTickSecond = currentSec;
+        }
+
+        if (gameState.timeRemaining <= 0) {
+          gameState.timeRemaining = 0;
+          updateHud();
+          showGameOver();
+        } else {
+          updateHud();
+        }
+
+        // Paced balloon launch
+        gameState.spawnTimer += dt;
+        if (gameState.spawnTimer >= 1.65) {
+          gameState.spawnTimer = 0;
+          if (gameState.activeFruits.length < 3) {
+            spawnTarget(false);
+            if (gameState.activeFruits.length <= 1 && Math.random() < 0.25) {
+              setTimeout(() => {
+                if (gameState.status === "playing" && gameState.activeFruits.length < 3) spawnTarget(false);
+              }, 180);
+            }
+          }
+        }
+
+        // Paced bomb balloon launch
+        gameState.bombSpawnTimer += dt;
+        if (gameState.bombSpawnTimer >= 6.0) {
+          gameState.bombSpawnTimer = 0;
+          const hasActiveBomb = gameState.activeFruits.some(f => f.isBomb);
+          if (!hasActiveBomb && gameState.activeFruits.length < 4 && Math.random() < 0.65) {
+            spawnTarget(true);
+          }
+        }
+      }
+
+      // Physics update: floaty balloon sway
+      for (let i = gameState.activeFruits.length - 1; i >= 0; i--) {
+        const b = gameState.activeFruits[i];
+        b.x += b.vx * dt;
+        b.vy += GRAVITY * dt;
+        b.y += b.vy * dt;
+
+        b.wobble = (b.wobble || 0) + dt * 3;
+        b.x += Math.sin(b.wobble) * 22 * dt; // gentle air sway
+        b.rotation = Math.sin(b.wobble) * 0.12;
+
+        if (b.stringWiggle !== undefined) {
+          b.stringWiggle += dt * 5;
+        }
+
+        if (b.isBomb) {
+          b.fuseSpark = (b.fuseSpark + dt * 15) % (Math.PI * 2);
+        }
+
+        if (b.y > height + 160 && b.vy > 0) {
+          gameState.activeFruits.splice(i, 1);
+        }
+      }
+
+      // Confetti & Shreds update
+      for (let i = gameState.juiceSplats.length - 1; i >= 0; i--) {
+        const burst = gameState.juiceSplats[i];
+        burst.age += dt;
+
+        for (let j = 0; j < burst.particles.length; j++) {
+          const p = burst.particles[j];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt + p.dripSpeed * dt;
+          p.vx *= p.friction;
+          p.vy *= p.friction;
+          p.rotation += p.rotSpeed * dt;
+        }
+
+        if (burst.shreds) {
+          for (let s = 0; s < burst.shreds.length; s++) {
+            const sh = burst.shreds[s];
+            sh.x += sh.vx * dt;
+            sh.y += sh.vy * dt + 15 * dt;
+            sh.vx *= 0.94;
+            sh.vy *= 0.94;
+          }
+        }
+
+        if (burst.age >= burst.maxLifespan) {
+          gameState.juiceSplats.splice(i, 1);
+        }
+      }
+
+      // Floating scores
+      for (let i = gameState.floatingScores.length - 1; i >= 0; i--) {
+        const fs = gameState.floatingScores[i];
+        fs.age += dt;
+        fs.y += fs.vy * dt;
+        fs.alpha = Math.max(0, 1 - (fs.age / fs.lifespan));
+        if (fs.age >= fs.lifespan) {
+          gameState.floatingScores.splice(i, 1);
+        }
+      }
+
+      // Strike rings
+      for (let i = gameState.strikeVisuals.length - 1; i >= 0; i--) {
+        const ring = gameState.strikeVisuals[i];
+        ring.radius += (ring.maxRadius - ring.radius) * (dt * 18);
+        ring.alpha -= dt / ring.lifespan;
+        if (ring.alpha <= 0) {
+          gameState.strikeVisuals.splice(i, 1);
+        }
+      }
+
+      // Camera shake decay
+      if (gameState.shakeIntensity > 0) {
+        gameState.shakeIntensity = Math.max(0, gameState.shakeIntensity - gameState.shakeDecay * dt * 60);
+      }
+
+      // ==========================================
+      // RENDER CANVAS
+      // ==========================================
+      ctx.save();
+
+      if (gameState.shakeIntensity > 0) {
+        const offsetX = (Math.random() - 0.5) * gameState.shakeIntensity;
+        const offsetY = (Math.random() - 0.5) * gameState.shakeIntensity;
+        ctx.translate(offsetX, offsetY);
+      }
+
+      ctx.fillStyle = "#070d18";
+      ctx.fillRect(0, 0, width, height);
+
+      drawCarnivalBackdrop();
+      drawConfettiBursts();
+      drawBalloons();
+      drawStrikeVisuals();
+      drawFloatingScores();
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function drawCarnivalBackdrop() {
+      const cx = width / 2;
+      const cy = height * 0.44;
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.02)";
+      ctx.lineWidth = 1;
+      for (let r = 120; r < Math.max(width, height); r += 160) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const grad = ctx.createLinearGradient(0, height, 0, height - 140);
+      grad.addColorStop(0, "rgba(244, 63, 94, 0.08)");
+      grad.addColorStop(1, "rgba(244, 63, 94, 0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, height - 140, width, 140);
+    }
+
+    function drawConfettiBursts() {
+      for (let i = 0; i < gameState.juiceSplats.length; i++) {
+        const burst = gameState.juiceSplats[i];
+        const alpha = Math.max(0, 1 - (burst.age / burst.maxLifespan));
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Draw rubber shreds
+        if (burst.shreds) {
+          ctx.fillStyle = burst.mainColor;
+          for (let s = 0; s < burst.shreds.length; s++) {
+            const sh = burst.shreds[s];
+            ctx.save();
+            ctx.translate(sh.x, sh.y);
+            ctx.rotate(sh.angle);
+            ctx.beginPath();
+            ctx.moveTo(-sh.size * 0.5, 0);
+            ctx.lineTo(sh.size * 0.5, -sh.size * 0.3);
+            ctx.lineTo(sh.size * 0.2, sh.size * 0.4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        // Draw spinning confetti ribbons
+        for (let p = 0; p < burst.particles.length; p++) {
+          const part = burst.particles[p];
+          ctx.save();
+          ctx.translate(part.x, part.y);
+          ctx.rotate(part.rotation);
+          ctx.fillStyle = part.color;
+          ctx.fillRect(-part.width / 2, -part.height / 2, part.width, part.height);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawBalloons() {
+      for (let i = 0; i < gameState.activeFruits.length; i++) {
+        const b = gameState.activeFruits[i];
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rotation);
+
+        if (b.isBomb) {
+          // BLACK SPIKED MINE BOMB BALLOON
+          ctx.fillStyle = "#18181b";
+          ctx.beginPath();
+          ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.lineWidth = Math.max(3, b.radius * 0.07);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+          ctx.stroke();
+
+          // Skull / danger hazard center
+          ctx.fillStyle = "#ef4444";
+          ctx.beginPath();
+          ctx.arc(0, 0, b.radius * 0.38, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(0, 0, b.radius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Spikes around bomb balloon
+          ctx.fillStyle = "#3f3f46";
+          for (let sp = 0; sp < 8; sp++) {
+            const spAng = (sp / 8) * Math.PI * 2;
+            const sx = Math.cos(spAng) * b.radius;
+            const sy = Math.sin(spAng) * b.radius;
+            ctx.beginPath();
+            ctx.arc(sx, sy, b.radius * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Fuse & spark
+          const capW = b.radius * 0.34;
+          const capH = b.radius * 0.22;
+          ctx.fillStyle = "#71717a";
+          ctx.fillRect(-capW / 2, -b.radius - capH + 2, capW, capH);
+
+          ctx.strokeStyle = "#d97706";
+          ctx.lineWidth = Math.max(3.5, b.radius * 0.08);
+          ctx.beginPath();
+          ctx.moveTo(0, -b.radius - capH + 2);
+          ctx.quadraticCurveTo(b.radius * 0.28, -b.radius - capH - 14, b.radius * 0.12, -b.radius - capH - 24);
+          ctx.stroke();
+
+          const sparkSize = 6 + Math.sin(b.fuseSpark) * 4;
+          ctx.fillStyle = "#facc15";
+          ctx.beginPath();
+          ctx.arc(b.radius * 0.12, -b.radius - capH - 25, sparkSize, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // GLOSSY CARNIVAL BALLOON RENDERING
+          // 1. Balloon String trailing below
+          ctx.strokeStyle = b.stringColor || "#cbd5e1";
+          ctx.lineWidth = Math.max(2.5, b.radius * 0.035);
+          ctx.beginPath();
+          ctx.moveTo(0, b.radius * 0.95);
+          const wiggleX = Math.sin(b.stringWiggle || 0) * 18;
+          ctx.bezierCurveTo(-15, b.radius * 1.3, 15, b.radius * 1.6, wiggleX, b.radius * 2.0);
+          ctx.stroke();
+
+          // 2. Balloon Knot at bottom
+          ctx.fillStyle = b.color;
+          ctx.beginPath();
+          ctx.moveTo(-10, b.radius * 0.88);
+          ctx.lineTo(10, b.radius * 0.88);
+          ctx.lineTo(14, b.radius * 1.02);
+          ctx.lineTo(-14, b.radius * 1.02);
+          ctx.closePath();
+          ctx.fill();
+
+          // 3. Balloon Oval / Egg Body
+          ctx.beginPath();
+          ctx.ellipse(0, -b.radius * 0.06, b.radius * 0.82, b.radius * 0.98, 0, 0, Math.PI * 2);
+          ctx.fillStyle = b.color;
+          ctx.fill();
+
+          // Specular highlights (glossy 3D balloon sheen)
+          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.beginPath();
+          ctx.ellipse(-b.radius * 0.32, -b.radius * 0.38, b.radius * 0.18, b.radius * 0.42, -Math.PI / 5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Secondary subtle bounce light
+          ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+          ctx.beginPath();
+          ctx.arc(b.radius * 0.35, b.radius * 0.38, b.radius * 0.16, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawStrikeVisuals() {
+      for (let i = 0; i < gameState.strikeVisuals.length; i++) {
+        const s = gameState.strikeVisuals[i];
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, s.alpha);
+
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function drawFloatingScores() {
+      for (let i = 0; i < gameState.floatingScores.length; i++) {
+        const fs = gameState.floatingScores[i];
+        ctx.save();
+        ctx.globalAlpha = fs.alpha;
+        ctx.font = `${fs.isBold ? "900" : "800"} ${fs.fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = fs.color;
+        ctx.fillText(fs.text, fs.x, fs.y);
+
+        ctx.restore();
+      }
+    }
+
+    requestAnimationFrame(gameLoop);
+  })();
+  </script>
+</body>
+</html>

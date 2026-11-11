@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Fruit Splat - 2D Arcade Ball Strike Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b0f19;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Fullscreen Game Canvas */
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+      z-index: 1;
+    }
+
+    /* Top HUD Bar */
+    #hudBar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 10;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(11, 15, 25, 0.88) 0%, rgba(11, 15, 25, 0.4) 75%, transparent 100%);
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(18, 24, 38, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 8px 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      pointer-events: auto;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+
+    .hud-value {
+      font-size: 28px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 0 16px rgba(255, 255, 255, 0.3);
+    }
+
+    .hud-value.timer {
+      color: #38bdf8;
+      text-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+    }
+
+    .hud-value.timer.warning {
+      color: #ef4444;
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      animation: pulseWarning 0.6s infinite alternate;
+    }
+
+    .hud-value.score {
+      color: #fbbf24;
+      text-shadow: 0 0 16px rgba(251, 191, 36, 0.5);
+    }
+
+    @keyframes pulseWarning {
+      from { transform: scale(1); }
+      to { transform: scale(1.1); }
+    }
+
+    .mode-switch-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      pointer-events: auto;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .mode-switch-btn:hover {
+      background: rgba(51, 65, 85, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Audio Toggle Button in HUD */
+    .icon-btn {
+      background: rgba(18, 24, 38, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #e2e8f0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover {
+      background: rgba(30, 41, 59, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .icon-btn:active {
+      transform: translateY(1px);
+    }
+
+    /* Screen Flash Overlay */
+    #flashOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.08s ease-out;
+    }
+
+    /* Start & Game Over Modals */
+    .overlay-modal {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(11, 15, 25, 0.78);
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, #161e2e, #0e1422);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 24px;
+      padding: 36px 44px;
+      text-align: center;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 80px rgba(249, 115, 22, 0.15);
+      color: #fff;
+    }
+
+    .modal-title {
+      font-size: 40px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #f97316 0%, #facc15 50%, #ef4444 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .modal-subtitle {
+      font-size: 15px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+      text-align: left;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px 16px;
+    }
+
+    .stat-box .title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .stat-box .val {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .primary-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      border-radius: 16px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(234, 88, 12, 0.4);
+      transition: all 0.2s ease;
+    }
+    .primary-btn:hover {
+      background: linear-gradient(135deg, #fb923c, #f97316);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(234, 88, 12, 0.55);
+    }
+    .primary-btn:active {
+      transform: translateY(1px);
+    }
+
+    .tuio-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Canvas Rendering Surface -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Flash Overlay for violent bomb explosion / penalty -->
+  <div id="flashOverlay"></div>
+
+  <!-- HUD Bar -->
+  <div id="hudBar">
+    <div class="hud-card">
+      <div>
+        <div class="hud-label">Remaining Time</div>
+        <div id="timerDisplay" class="hud-value timer">60s</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/balloonpop.html" class="mode-switch-btn" title="Switch to Balloon Pop Variation">
+        🎈 Balloon Pop Mode
+      </a>
+
+      <div class="hud-card">
+        <div>
+          <div class="hud-label">Score</div>
+          <div id="scoreDisplay" class="hud-value score">0</div>
+        </div>
+      </div>
+
+      <button id="muteBtn" class="icon-btn" title="Toggle Sound">
+        <svg id="soundOnIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="soundOffIcon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Start / Ready Screen Modal -->
+  <div id="startModal" class="overlay-modal">
+    <div class="modal-card">
+      <h1 class="modal-title">FRUIT SPLAT</h1>
+      <p class="modal-subtitle">Amusement Park Ball-Strike Arcade Simulator.<br/>Click or throw balls at flying fruits to splat them!</p>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="title">Fruit Hit</div>
+          <div class="val" style="color: #4ade80;">+50 to +90 pts</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Black Bomb</div>
+          <div class="val" style="color: #ef4444;">-200 pts penalty</div>
+        </div>
+      </div>
+
+      <button id="startGameBtn" class="primary-btn">START GAME (60s)</button>
+      
+      <div class="tuio-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        TUIO touch coordinate handler active via window.simulateTuioStrike(x, y)
+      </div>
+    </div>
+  </div>
+
+  <!-- Time's Up Screen Modal -->
+  <div id="gameOverModal" class="overlay-modal hidden">
+    <div class="modal-card">
+      <h1 class="modal-title" style="background: linear-gradient(135deg, #38bdf8, #818cf8);">TIME'S UP!</h1>
+      <p class="modal-subtitle">Great game! Here is your amusement park strike report:</p>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="title">Final Score</div>
+          <div id="finalScoreVal" class="val" style="color: #fbbf24;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Fruits Splatted</div>
+          <div id="finalSplatsVal" class="val" style="color: #38bdf8;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Bombs Detonated</div>
+          <div id="finalBombsVal" class="val" style="color: #f87171;">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">Accuracy</div>
+          <div id="finalAccuracyVal" class="val" style="color: #4ade80;">0%</div>
+        </div>
+      </div>
+
+      <button id="playAgainBtn" class="primary-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- Single self-contained script containing isolated physics, animation, audio, and state -->
+  <script>
+  (function () {
+    "use strict";
+
+    // ==========================================
+    // 1. CONFIGURATION & CONSTANTS
+    // ==========================================
+    const GAME_DURATION_SEC = 60;
+    const GRAVITY = 980; // pixels / second^2
+    const BALL_STRIKE_RADIUS = 84; // simulated ball collision tolerance radius (scaled for 75% larger targets)
+    const SPLAT_LIFESPAN = 2.0; // Juice splat particles fade over 2.0s
+    const BOMB_PENALTY = 200;
+
+    // Fruit definitions (75% larger giant targets for high-visibility arcade touch)
+    const FRUIT_TYPES = [
+      { name: "Apple", color: "#ef4444", juiceColor: "#f87171", points: 50, radius: 105, leaf: true },
+      { name: "Orange", color: "#f97316", juiceColor: "#fb923c", points: 60, radius: 98, leaf: true },
+      { name: "Banana", color: "#facc15", juiceColor: "#fef08a", points: 70, radius: 91, leaf: false },
+      { name: "Watermelon", color: "#10b981", juiceColor: "#f43f5e", points: 80, radius: 130, leaf: false },
+      { name: "Plum", color: "#a855f7", juiceColor: "#c084fc", points: 90, radius: 95, leaf: true }
+    ];
+
+    // ==========================================
+    // 2. PROCEDURAL SOUND SYNTHESIS (Web Audio)
+    // ==========================================
+    let audioCtx = null;
+    let isMuted = false;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (isMuted || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+
+        if (type === "splat") {
+          // Juicy squish pop: pitch drop oscillator + noise burst
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.16);
+
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } else if (type === "bomb") {
+          // Low explosive impact boom
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.exponentialRampToValueAtTime(24, now + 0.45);
+
+          gain.gain.setValueAtTime(0.6, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.52);
+        } else if (type === "strike") {
+          // Ball striking arcade plexiglass screen thud
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === "tick") {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, now);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        }
+      } catch (err) {
+        // Audio policy or context error graceful fallback
+      }
+    }
+
+    // ==========================================
+    // 3. CANVAS & ENGINE SETUP
+    // ==========================================
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const flashOverlay = document.getElementById("flashOverlay");
+
+    const timerDisplay = document.getElementById("timerDisplay");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const startModal = document.getElementById("startModal");
+    const gameOverModal = document.getElementById("gameOverModal");
+    const startGameBtn = document.getElementById("startGameBtn");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const soundOnIcon = document.getElementById("soundOnIcon");
+    const soundOffIcon = document.getElementById("soundOffIcon");
+
+    const finalScoreVal = document.getElementById("finalScoreVal");
+    const finalSplatsVal = document.getElementById("finalSplatsVal");
+    const finalBombsVal = document.getElementById("finalBombsVal");
+    const finalAccuracyVal = document.getElementById("finalAccuracyVal");
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // ==========================================
+    // 4. GAME STATE
+    // ==========================================
+    const gameState = {
+      status: "ready", // 'ready' | 'playing' | 'gameover'
+      score: 0,
+      timeRemaining: GAME_DURATION_SEC,
+      totalThrows: 0,
+      totalHits: 0,
+      bombsHit: 0,
+      spawnTimer: 0,
+      bombSpawnTimer: 0,
+      shakeIntensity: 0,
+      shakeDecay: 18,
+      lastFrameTime: performance.now(),
+      activeFruits: [],     // Flying objects (fruits + bombs)
+      juiceSplats: [],      // Background fading splat marks & particles (2s lifespan)
+      floatingScores: [],   // "+50", "-200" drifting labels
+      strikeVisuals: []     // Rings showing where ball hit the glass
+    };
+
+    // ==========================================
+    // 5. ISOLATED PHYSICS & HIT MECHANICS
+    // (Ready for TUIO touch coordinates swap)
+    // ==========================================
+
+    /**
+     * Spawns a fruit or bomb launched upward from bottom
+     */
+    function spawnTarget(isBomb = false) {
+      const margin = 130;
+      const x = margin + Math.random() * (width - margin * 2);
+      const y = height + 70;
+
+      // Target apex around upper 25% - 45% of the screen
+      const apexY = height * (0.2 + Math.random() * 0.28);
+      const dy = apexY - y;
+      const vy = -Math.sqrt(2 * GRAVITY * Math.abs(dy)); // physics jump velocity: v^2 = 2 * g * h
+
+      // Horizontal velocity angled inward towards the screen center
+      const centerX = width / 2;
+      const drift = (centerX - x) * (0.4 + Math.random() * 0.5);
+      const timeToApex = Math.abs(vy) / GRAVITY;
+      const vx = drift / timeToApex + (Math.random() - 0.5) * 80;
+
+      if (isBomb) {
+        gameState.activeFruits.push({
+          id: Math.random(),
+          isBomb: true,
+          name: "Bomb",
+          x: x,
+          y: y,
+          vx: vx,
+          vy: vy,
+          radius: 109,
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 3,
+          fuseSpark: 0
+        });
+      } else {
+        const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+        gameState.activeFruits.push({
+          id: Math.random(),
+          isBomb: false,
+          name: type.name,
+          color: type.color,
+          juiceColor: type.juiceColor,
+          points: type.points,
+          radius: type.radius,
+          leaf: type.leaf,
+          x: x,
+          y: y,
+          vx: vx,
+          vy: vy,
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 4
+        });
+      }
+    }
+
+    /**
+     * Primary Ball Strike Collision Handler
+     * Used by mouse clicks AND external TUIO coordinate feeds
+     * @param {number} hitX - Screen X in pixels
+     * @param {number} hitY - Screen Y in pixels
+     */
+    function handleBallStrike(hitX, hitY) {
+      if (gameState.status !== "playing") return;
+
+      gameState.totalThrows++;
+
+      // Visual ball impact ring on glass
+      gameState.strikeVisuals.push({
+        x: hitX,
+        y: hitY,
+        radius: 12,
+        maxRadius: 44,
+        alpha: 0.9,
+        lifespan: 0.28
+      });
+      playSound("strike");
+
+      let hitOccurred = false;
+
+      // Check collision from top of stack downward
+      for (let i = gameState.activeFruits.length - 1; i >= 0; i--) {
+        const target = gameState.activeFruits[i];
+        const dx = hitX - target.x;
+        const dy = hitY - target.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Collision check with ball strike tolerance radius
+        if (dist <= target.radius + BALL_STRIKE_RADIUS) {
+          hitOccurred = true;
+
+          if (target.isBomb) {
+            // Bomb triggered!
+            gameState.bombsHit++;
+            gameState.score -= BOMB_PENALTY;
+            updateHud();
+
+            // Violent screen flash red
+            triggerScreenFlash("rgba(239, 68, 68, 0.85)");
+
+            // Camera shake
+            gameState.shakeIntensity = 28;
+
+            // Audio boom
+            playSound("bomb");
+
+            // Floating penalty text
+            addFloatingText(target.x, target.y, `-${BOMB_PENALTY}`, "#ef4444", 46, true);
+
+            // Bomb explosion debris
+            createBombDebris(target.x, target.y);
+
+            // Remove bomb instantly
+            gameState.activeFruits.splice(i, 1);
+          } else {
+            // Fruit hit!
+            gameState.totalHits++;
+            gameState.score += target.points;
+            updateHud();
+
+            playSound("splat");
+
+            // Floating score label drifting upward
+            addFloatingText(target.x, target.y, `+${target.points}`, target.juiceColor, 38, false);
+
+            // Spawn persistent juice splat on background (fades over 2.0s)
+            createJuiceSplat(target.x, target.y, target.color, target.juiceColor, target.radius);
+
+            // Remove fruit instantly
+            gameState.activeFruits.splice(i, 1);
+          }
+          break; // Ball strikes the first fruit it encounters
+        }
+      }
+    }
+
+    // Expose clean global hook for TUIO or WebSocket touch coordinators
+    window.simulateTuioStrike = function (screenX, screenY) {
+      handleBallStrike(screenX, screenY);
+    };
+
+    /**
+     * Spawns persistent juice splat particles that slowly fade over 2.0 seconds
+     */
+    function createJuiceSplat(x, y, mainColor, accentColor, baseRadius) {
+      const particleCount = 24 + Math.floor(Math.random() * 8);
+      const particles = [];
+
+      for (let i = 0; i < particleCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 60 + Math.random() * 320;
+        const pSize = 8 + Math.random() * 22;
+        particles.push({
+          x: x + (Math.random() - 0.5) * (baseRadius * 0.8),
+          y: y + (Math.random() - 0.5) * (baseRadius * 0.8),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: pSize,
+          friction: 0.92,
+          dripSpeed: 14 + Math.random() * 35
+        });
+      }
+
+      // Splat blotches (organic circles at impact origin)
+      const blotches = [];
+      const blotchCount = 5 + Math.floor(Math.random() * 4);
+      for (let j = 0; j < blotchCount; j++) {
+        const rad = baseRadius * (0.45 + Math.random() * 0.75);
+        const dist = Math.random() * (baseRadius * 0.7);
+        const ang = Math.random() * Math.PI * 2;
+        blotches.push({
+          offsetX: Math.cos(ang) * dist,
+          offsetY: Math.sin(ang) * dist,
+          radius: rad
+        });
+      }
+
+      gameState.juiceSplats.push({
+        x: x,
+        y: y,
+        mainColor: mainColor,
+        accentColor: accentColor,
+        particles: particles,
+        blotches: blotches,
+        age: 0,
+        maxLifespan: SPLAT_LIFESPAN // 2.0 seconds
+      });
+    }
+
+    /**
+     * Bomb explosion fragments and smoke
+     */
+    function createBombDebris(x, y) {
+      const debrisCount = 30;
+      const particles = [];
+      for (let i = 0; i < debrisCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 120 + Math.random() * 380;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          size: 5 + Math.random() * 12,
+          color: Math.random() > 0.4 ? "#f97316" : (Math.random() > 0.5 ? "#ef4444" : "#1f2937"),
+          friction: 0.94
+        });
+      }
+
+      gameState.juiceSplats.push({
+        x: x,
+        y: y,
+        mainColor: "#ef4444",
+        accentColor: "#f97316",
+        particles: particles,
+        blotches: [],
+        age: 0,
+        maxLifespan: 1.2
+      });
+    }
+
+    /**
+     * Floating text score that drifts upward and fades out
+     */
+    function addFloatingText(x, y, text, color, fontSize, isBold) {
+      gameState.floatingScores.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        fontSize: fontSize,
+        isBold: isBold,
+        vy: -75, // drifts upward
+        alpha: 1.0,
+        age: 0,
+        lifespan: 1.2
+      });
+    }
+
+    /**
+     * Violent screen flash for bombs
+     */
+    let flashTimer = null;
+    function triggerScreenFlash(color) {
+      flashOverlay.style.backgroundColor = color;
+      flashOverlay.style.opacity = "1";
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => {
+        flashOverlay.style.opacity = "0";
+      }, 140);
+    }
+
+    // ==========================================
+    // 6. UI SYNCHRONIZATION
+    // ==========================================
+    function updateHud() {
+      scoreDisplay.textContent = gameState.score;
+      const sec = Math.ceil(gameState.timeRemaining);
+      timerDisplay.textContent = `${sec}s`;
+
+      if (sec <= 10) {
+        timerDisplay.classList.add("warning");
+      } else {
+        timerDisplay.classList.remove("warning");
+      }
+    }
+
+    function showGameOver() {
+      gameState.status = "gameover";
+      finalScoreVal.textContent = gameState.score;
+      finalSplatsVal.textContent = gameState.totalHits;
+      finalBombsVal.textContent = gameState.bombsHit;
+      
+      const accuracy = gameState.totalThrows > 0
+        ? Math.round((gameState.totalHits / gameState.totalThrows) * 100)
+        : 0;
+      finalAccuracyVal.textContent = `${accuracy}%`;
+
+      gameOverModal.classList.remove("hidden");
+    }
+
+    function startNewGame() {
+      initAudio();
+      gameState.status = "playing";
+      gameState.score = 0;
+      gameState.timeRemaining = GAME_DURATION_SEC;
+      gameState.totalThrows = 0;
+      gameState.totalHits = 0;
+      gameState.bombsHit = 0;
+      gameState.spawnTimer = 0;
+      gameState.bombSpawnTimer = 0;
+      gameState.shakeIntensity = 0;
+      gameState.activeFruits = [];
+      gameState.juiceSplats = [];
+      gameState.floatingScores = [];
+      gameState.strikeVisuals = [];
+
+      startModal.classList.add("hidden");
+      gameOverModal.classList.add("hidden");
+      updateHud();
+    }
+
+    // ==========================================
+    // 7. INPUT LISTENERS (Mouse + Touch)
+    // ==========================================
+    canvas.addEventListener("pointerdown", function (e) {
+      initAudio();
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      handleBallStrike(clickX, clickY);
+    });
+
+    // Touch support for direct kiosk displays
+    canvas.addEventListener("touchstart", function (e) {
+      initAudio();
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        handleBallStrike(t.clientX - rect.left, t.clientY - rect.top);
+      }
+    }, { passive: false });
+
+    startGameBtn.addEventListener("click", startNewGame);
+    playAgainBtn.addEventListener("click", startNewGame);
+
+    muteBtn.addEventListener("click", function () {
+      initAudio();
+      isMuted = !isMuted;
+      if (isMuted) {
+        soundOnIcon.classList.add("hidden");
+        soundOffIcon.classList.remove("hidden");
+      } else {
+        soundOnIcon.classList.remove("hidden");
+        soundOffIcon.classList.add("hidden");
+      }
+    });
+
+    // ==========================================
+    // 8. MAIN GAME LOOP (requestAnimationFrame)
+    // ==========================================
+    let lastTickSecond = GAME_DURATION_SEC;
+
+    function gameLoop(currentTime) {
+      const dt = Math.min((currentTime - gameState.lastFrameTime) / 1000, 0.05); // clamp dt to avoid physics spiral
+      gameState.lastFrameTime = currentTime;
+
+      // Update timer & state
+      if (gameState.status === "playing") {
+        gameState.timeRemaining -= dt;
+
+        // Ticking audio in final 10 seconds
+        const currentSec = Math.ceil(gameState.timeRemaining);
+        if (currentSec <= 10 && currentSec !== lastTickSecond && currentSec > 0) {
+          playSound("tick");
+          lastTickSecond = currentSec;
+        }
+
+        if (gameState.timeRemaining <= 0) {
+          gameState.timeRemaining = 0;
+          updateHud();
+          showGameOver();
+        } else {
+          updateHud();
+        }
+
+        // Paced Fruit Spawning rhythm (lower quantity, larger targets)
+        gameState.spawnTimer += dt;
+        if (gameState.spawnTimer >= 1.65) {
+          gameState.spawnTimer = 0;
+          if (gameState.activeFruits.length < 3) {
+            spawnTarget(false);
+            if (gameState.activeFruits.length <= 1 && Math.random() < 0.25) {
+              setTimeout(() => {
+                if (gameState.status === "playing" && gameState.activeFruits.length < 3) spawnTarget(false);
+              }, 180);
+            }
+          }
+        }
+
+        // Paced Bomb Spawning rhythm (rare hazard)
+        gameState.bombSpawnTimer += dt;
+        if (gameState.bombSpawnTimer >= 6.0) {
+          gameState.bombSpawnTimer = 0;
+          const hasActiveBomb = gameState.activeFruits.some(f => f.isBomb);
+          if (!hasActiveBomb && gameState.activeFruits.length < 4 && Math.random() < 0.65) {
+            spawnTarget(true); // Spawn black bomb
+          }
+        }
+      }
+
+      // Physics update for active targets
+      for (let i = gameState.activeFruits.length - 1; i >= 0; i--) {
+        const f = gameState.activeFruits[i];
+        f.x += f.vx * dt;
+        f.vy += GRAVITY * dt;
+        f.y += f.vy * dt;
+        f.rotation += f.vRot * dt;
+
+        if (f.isBomb) {
+          f.fuseSpark = (f.fuseSpark + dt * 15) % (Math.PI * 2);
+        }
+
+        // Remove if fallen below screen
+        if (f.y > height + 160 && f.vy > 0) {
+          gameState.activeFruits.splice(i, 1);
+        }
+      }
+
+      // Update juice splats
+      for (let i = gameState.juiceSplats.length - 1; i >= 0; i--) {
+        const splat = gameState.juiceSplats[i];
+        splat.age += dt;
+
+        // Particle velocity & drip decay
+        for (let j = 0; j < splat.particles.length; j++) {
+          const p = splat.particles[j];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt + p.dripSpeed * dt * 0.2;
+          p.vx *= p.friction;
+          p.vy *= p.friction;
+        }
+
+        if (splat.age >= splat.maxLifespan) {
+          gameState.juiceSplats.splice(i, 1);
+        }
+      }
+
+      // Update floating score texts
+      for (let i = gameState.floatingScores.length - 1; i >= 0; i--) {
+        const fs = gameState.floatingScores[i];
+        fs.age += dt;
+        fs.y += fs.vy * dt;
+        fs.alpha = Math.max(0, 1 - (fs.age / fs.lifespan));
+        if (fs.age >= fs.lifespan) {
+          gameState.floatingScores.splice(i, 1);
+        }
+      }
+
+      // Update strike visual rings
+      for (let i = gameState.strikeVisuals.length - 1; i >= 0; i--) {
+        const ring = gameState.strikeVisuals[i];
+        ring.radius += (ring.maxRadius - ring.radius) * (dt * 18);
+        ring.alpha -= dt / ring.lifespan;
+        if (ring.alpha <= 0) {
+          gameState.strikeVisuals.splice(i, 1);
+        }
+      }
+
+      // Decay camera shake
+      if (gameState.shakeIntensity > 0) {
+        gameState.shakeIntensity = Math.max(0, gameState.shakeIntensity - gameState.shakeDecay * dt * 60);
+      }
+
+      // ==========================================
+      // RENDER PIPELINE
+      // ==========================================
+      ctx.save();
+
+      // Camera Shake offset
+      if (gameState.shakeIntensity > 0) {
+        const offsetX = (Math.random() - 0.5) * gameState.shakeIntensity;
+        const offsetY = (Math.random() - 0.5) * gameState.shakeIntensity;
+        ctx.translate(offsetX, offsetY);
+      }
+
+      // Clear frame with carnival amusement park backdrop
+      ctx.fillStyle = "#0b0f19";
+      ctx.fillRect(0, 0, width, height);
+
+      // Ambient background arcade grid / target rings
+      drawArcadeBackdrop();
+
+      // Layer 1: Persistent juice splats on background (slowly fade over 2.0s)
+      drawJuiceSplats();
+
+      // Layer 2: Flying fruits & bombs
+      drawActiveTargets();
+
+      // Layer 3: Ball strike ripples
+      drawStrikeVisuals();
+
+      // Layer 4: Floating scores (+50 / -200)
+      drawFloatingScores();
+
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ==========================================
+    // DRAWING HELPER FUNCTIONS
+    // ==========================================
+
+    function drawArcadeBackdrop() {
+      // Subtle amusement target concentric zones
+      const cx = width / 2;
+      const cy = height * 0.42;
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.02)";
+      ctx.lineWidth = 1;
+      for (let r = 100; r < Math.max(width, height); r += 140) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Bottom launch stage ambient glow
+      const grad = ctx.createLinearGradient(0, height, 0, height - 120);
+      grad.addColorStop(0, "rgba(249, 115, 22, 0.08)");
+      grad.addColorStop(1, "rgba(249, 115, 22, 0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, height - 120, width, 120);
+    }
+
+    function drawJuiceSplats() {
+      for (let i = 0; i < gameState.juiceSplats.length; i++) {
+        const splat = gameState.juiceSplats[i];
+        // Exact 2-second fade calculation
+        const alpha = Math.max(0, 1 - (splat.age / splat.maxLifespan));
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Central blotches
+        ctx.fillStyle = splat.mainColor;
+        for (let b = 0; b < splat.blotches.length; b++) {
+          const blotch = splat.blotches[b];
+          ctx.beginPath();
+          ctx.arc(splat.x + blotch.offsetX, splat.y + blotch.offsetY, blotch.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Splattering droplets & trails
+        ctx.fillStyle = splat.accentColor;
+        for (let p = 0; p < splat.particles.length; p++) {
+          const part = splat.particles[p];
+          ctx.beginPath();
+          ctx.arc(part.x, part.y, Math.max(1, part.size * (0.4 + 0.6 * alpha)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawActiveTargets() {
+      for (let i = 0; i < gameState.activeFruits.length; i++) {
+        const f = gameState.activeFruits[i];
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.rotate(f.rotation);
+
+        if (f.isBomb) {
+          // BOMB RENDERING
+          // Bomb body
+          ctx.fillStyle = "#171717";
+          ctx.beginPath();
+          ctx.arc(0, 0, f.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Metallic bomb rim shadow/highlight
+          ctx.lineWidth = Math.max(3, f.radius * 0.07);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+          ctx.stroke();
+
+          // Danger skull crossbones or red hazard indicator
+          ctx.fillStyle = "#ef4444";
+          ctx.beginPath();
+          ctx.arc(0, 0, f.radius * 0.38, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Warning hazard inner dot
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(0, 0, f.radius * 0.12, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Bomb cap & fuse scaled
+          const capW = f.radius * 0.34;
+          const capH = f.radius * 0.22;
+          ctx.fillStyle = "#71717a";
+          ctx.fillRect(-capW / 2, -f.radius - capH + 2, capW, capH);
+
+          ctx.strokeStyle = "#d97706";
+          ctx.lineWidth = Math.max(3.5, f.radius * 0.08);
+          ctx.beginPath();
+          ctx.moveTo(0, -f.radius - capH + 2);
+          ctx.quadraticCurveTo(f.radius * 0.28, -f.radius - capH - 14, f.radius * 0.12, -f.radius - capH - 24);
+          ctx.stroke();
+
+          // Crackling animated spark flame
+          const sparkSize = 6 + Math.sin(f.fuseSpark) * 4;
+          ctx.fillStyle = "#facc15";
+          ctx.beginPath();
+          ctx.arc(f.radius * 0.12, -f.radius - capH - 25, sparkSize, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#f97316";
+          ctx.beginPath();
+          ctx.arc(f.radius * 0.12, -f.radius - capH - 25, sparkSize * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // FRUIT RENDERING
+          // Main fruit circle
+          ctx.fillStyle = f.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, f.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Fruit highlight gloss arc
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.lineWidth = Math.max(3.5, f.radius * 0.08);
+          ctx.beginPath();
+          ctx.arc(-f.radius * 0.28, -f.radius * 0.28, f.radius * 0.58, Math.PI * 1.1, Math.PI * 1.7);
+          ctx.stroke();
+
+          // Fruit stem / leaf
+          if (f.leaf) {
+            ctx.fillStyle = "#22c55e";
+            ctx.beginPath();
+            ctx.ellipse(f.radius * 0.28, -f.radius * 0.88, f.radius * 0.35, f.radius * 0.18, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Brown stem
+            ctx.strokeStyle = "#78350f";
+            ctx.lineWidth = Math.max(3, f.radius * 0.08);
+            ctx.beginPath();
+            ctx.moveTo(0, -f.radius + 4);
+            ctx.lineTo(f.radius * 0.06, -f.radius - 14);
+            ctx.stroke();
+          }
+
+          // Special banana curve or orange pith detailing
+          if (f.name === "Orange") {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.beginPath();
+            ctx.arc(0, 0, f.radius * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+
+    function drawStrikeVisuals() {
+      for (let i = 0; i < gameState.strikeVisuals.length; i++) {
+        const s = gameState.strikeVisuals[i];
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, s.alpha);
+
+        // Outer strike shockwave ring
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner ball strike contact core
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    function drawFloatingScores() {
+      for (let i = 0; i < gameState.floatingScores.length; i++) {
+        const fs = gameState.floatingScores[i];
+        ctx.save();
+        ctx.globalAlpha = fs.alpha;
+        ctx.font = `${fs.isBold ? "900" : "800"} ${fs.fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Text shadow for high readability against active screen
+        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = fs.color;
+        ctx.fillText(fs.text, fs.x, fs.y);
+
+        ctx.restore();
+      }
+    }
+
+    // Start rendering frame loop
+    requestAnimationFrame(gameLoop);
+  })();
+  </script>
+</body>
+</html>
