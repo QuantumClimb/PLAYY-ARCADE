@@ -1422,14 +1422,6 @@ export default function App() {
               >
                 HOME
               </button>
-
-              <button
-                onClick={() => setShowCodeModal(true)}
-                className="btn-3d btn-3d-sm btn-3d-blue px-4 py-3"
-                title="Single-File HTML Export"
-              >
-                <Download className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
