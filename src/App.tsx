@@ -1363,66 +1363,62 @@ export default function App() {
         />
       )}
 
-      {/* Time's Up Screen Modal */}
+      {/* Time's Up Screen: same look as the intro page */}
       {gameStatus === "gameover" && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6">
-          <div className="w-full max-w-md bg-gradient-to-b from-indigo-950/95 to-slate-950/95 border-[5px] border-white rounded-[28px] p-8 text-center shadow-2xl">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-500/20 text-sky-400 mb-3 border border-sky-500/30">
-              <Trophy className="w-7 h-7" />
-            </div>
+        <div className="intro-page absolute inset-0 z-30 overflow-hidden flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <img
+            src="/assets/intro/intro-bg.png"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
 
-            <h2 className="text-4xl text-white tracking-tight" style={{ WebkitTextStroke: "1px #1b1a6e", textShadow: "0 4px 0 #1b1a6e" }}>TIME'S UP!</h2>
-            <p className="text-xs text-slate-400 mt-1 mb-6">Amusement park ball-strike performance report:</p>
+          <span className="intro-star text-4xl" style={{ left: "8%", top: "14%", transform: "rotate(-14deg)" }}>★</span>
+          <span className="intro-star text-3xl" style={{ right: "9%", top: "20%", transform: "rotate(15deg)" }}>★</span>
+          <span className="intro-star pink text-2xl" style={{ left: "16%", bottom: "16%" }}>★</span>
+          <span className="intro-star pink text-2xl" style={{ right: "15%", bottom: "12%" }}>★</span>
 
-            <div className="grid grid-cols-2 gap-3 mb-6 text-left">
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Final Score</div>
-                <div className="text-2xl font-black text-amber-400 tabular-nums">{score}</div>
-              </div>
+          <img
+            src="/assets/SVG/logo/logo.svg"
+            alt="PLAYY"
+            className="relative z-10 h-[20vh] max-h-56 w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.45)]"
+          />
 
-              <div className="bg-white/[0.04] border border-amber-500/30 rounded-2xl p-3.5">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-amber-300 flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 text-amber-400" /> Max Combo
-                </div>
-                <div className="text-2xl font-black text-amber-400 tabular-nums">{stats.maxCombo > 1 ? `${stats.maxCombo}x Streak` : "1x"}</div>
-              </div>
+          <h2 className="relative z-10 text-5xl sm:text-6xl text-white" style={{ WebkitTextStroke: "2px #1b1a6e", textShadow: "0 5px 0 #1b1a6e" }}>
+            TIME'S UP!
+          </h2>
 
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">{isBalloons ? "Balloons Popped" : "Fruits Splatted"}</div>
-                <div className="text-2xl font-black text-sky-400 tabular-nums">{stats.hits}</div>
-              </div>
+          <div
+            className="relative z-10 text-8xl sm:text-9xl tabular-nums leading-none"
+            style={{ fontFamily: "'Sniglet', 'Fredoka', sans-serif", fontWeight: 800, color: "#ffd22a", WebkitTextStroke: "3px #1b1a6e", textShadow: "0 7px 0 #1b1a6e" }}
+          >
+            {score}
+          </div>
 
-              <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3.5">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Bombs Triggered</div>
-                <div className="text-2xl font-black text-red-400 tabular-nums">{stats.bombs}</div>
-              </div>
+          <p className="relative z-10 text-lg sm:text-xl" style={{ color: "var(--playy-indigo)" }}>
+            {stats.hits} {isBalloons ? "balloons popped" : "fruits splatted"}
+            {" · "}
+            {stats.maxCombo > 1 ? `${stats.maxCombo}x best combo` : "no combo"}
+            {" · "}
+            {accuracy}% accuracy
+            {stats.bombs > 0 && ` · ${stats.bombs} ${stats.bombs === 1 ? "bomb" : "bombs"}`}
+          </p>
 
-              <div className="col-span-2 bg-white/[0.04] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Strike Accuracy</div>
-                <div className="text-2xl font-black text-emerald-400 tabular-nums">{accuracy}%</div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={startNewGame}
-                className="btn-3d btn-3d-amber flex-1 py-3 px-6 text-lg flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4 stroke-[2.5]" />
-                <span>PLAY AGAIN</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  engineRef.current.status = "ready";
-                  setGameStatus("ready");
-                  setIntroDone(false);
-                }}
-                className="btn-3d btn-3d-blue px-5 py-3 text-lg"
-              >
-                HOME
-              </button>
-            </div>
+          <div className="relative z-10 flex flex-col sm:flex-row gap-5 w-full max-w-xl mt-2">
+            <button onClick={startNewGame} className="btn-3d btn-3d-amber flex-1 py-4 px-6 text-2xl flex items-center justify-center gap-2">
+              <RotateCcw className="w-5 h-5 stroke-[3]" />
+              PLAY AGAIN
+            </button>
+            <button
+              onClick={() => {
+                engineRef.current.status = "ready";
+                setGameStatus("ready");
+                setIntroDone(false);
+              }}
+              className="btn-3d btn-3d-blue flex-1 py-4 px-6 text-2xl"
+            >
+              HOME
+            </button>
           </div>
         </div>
       )}
